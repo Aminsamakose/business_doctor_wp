@@ -157,6 +157,10 @@ class BD_Rest_Owner {
 		if ( ! array_key_exists( $platform, BD_Frameworks::platforms() ) ) {
 			return new WP_Error( 'bd_unavailable', __( 'That platform is not recognised.', 'business-doctor' ), array( 'status' => 404 ) );
 		}
+		$enabled = (array) BD_Settings::get( 'enabled_platforms' );
+		if ( ! in_array( $platform, $enabled, true ) ) {
+			return new WP_Error( 'bd_unavailable', __( 'This assessment is not available right now.', 'business-doctor' ), array( 'status' => 404 ) );
+		}
 		$fw = BD_Frameworks::published( $platform, 'full' );
 		if ( ! $fw ) {
 			return new WP_Error( 'bd_unavailable', __( 'The full assessment for this platform is not available right now.', 'business-doctor' ), array( 'status' => 404 ) );
@@ -243,7 +247,10 @@ class BD_Rest_Owner {
 	 */
 	public static function save_organisation( WP_REST_Request $req ) {
 		$platform = bd_sanitize_code( (string) $req['platform'] );
-		$org      = BD_Organisations::save( get_current_user_id(), $platform, (array) $req->get_json_params() );
+		if ( ! array_key_exists( $platform, BD_Frameworks::platforms() ) ) {
+			return new WP_Error( 'bd_unavailable', __( 'That platform is not recognised.', 'business-doctor' ), array( 'status' => 404 ) );
+		}
+		$org = BD_Organisations::save( get_current_user_id(), $platform, (array) $req->get_json_params() );
 		return is_wp_error( $org ) ? $org : rest_ensure_response( $org );
 	}
 
@@ -264,6 +271,9 @@ class BD_Rest_Owner {
 			return new WP_Error( 'bd_no_org', __( 'Please complete your organisation profile before starting the assessment.', 'business-doctor' ), array( 'status' => 422 ) );
 		}
 		$d = BD_Diagnostics::start_or_resume( $org, $fw );
+		if ( is_wp_error( $d ) ) {
+			return $d;
+		}
 		return rest_ensure_response(
 			array_merge(
 				BD_Diagnostics::to_public( $d ),

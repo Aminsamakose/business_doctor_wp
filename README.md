@@ -106,6 +106,7 @@ This runs scoring parity (912 cases from the original TypeScript), band boundari
 - Routing a new lead to a specific staff member (as in Samakose AI's admin) is not ported; Phase 1's single notification-email setting covers both phases for now.
 - No payments, plans or entitlements yet (Phase 3): a business owner can currently register and take the full assessment without being charged.
 - Business owners use WordPress's own "Lost your password?" flow (there is a link to it on the sign-in screen); there is no custom in-app password reset.
+- Settings > which assessments to offer (`enabled_platforms`) now also gates the full assessment, an organisation cannot be saved against an unrecognised platform, and an organisation with a submitted assessment cannot start a new one for 180 days (matching the ported `recheck.interval_days` rule). A finer-grained re-check workflow (staff-initiated, or tied to a programme cycle) is left for Phase 4/5 case management.
 
 ## Licence
 

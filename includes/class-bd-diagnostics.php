@@ -18,6 +18,9 @@ class BD_Diagnostics {
 	// cannot do for themselves. Mirrors OWNER_CLASSES in Samakose AI (src/services/diagnostics.ts).
 	const OWNER_EVIDENCE_CLASSES = array( 'Self-reported', 'Unverified', 'Missing', 'Document-supported' );
 	const MIN_COMPLETION   = 0.9;
+	// Minimum days between a submitted assessment and the next one for the same organisation,
+	// matching recheck.interval_days in Samakose AI's ported rules (DEFAULT_RULES).
+	const RECHECK_DAYS = 180;
 
 	/**
 	 * Decodes a row.
@@ -90,7 +93,8 @@ class BD_Diagnostics {
 	 *
 	 * @param array $org      Organisation (see BD_Organisations).
 	 * @param array $fw       Published full framework (see BD_Frameworks::published($platform, 'full')).
-	 * @return array
+	 * @return array|WP_Error WP_Error if the organisation's last submitted assessment is still within
+	 *                        the re-check cooldown (see RECHECK_DAYS).
 	 */
 	public static function start_or_resume( array $org, array $fw ) {
 		global $wpdb;
@@ -99,6 +103,32 @@ class BD_Diagnostics {
 		$draft = $wpdb->get_row( $wpdb->prepare( "SELECT * FROM {$t['diagnostics']} WHERE org_id = %d AND status = 'draft'", $org['id'] ) );
 		if ( $draft ) {
 			return self::hydrate( $draft );
+		}
+		// phpcs:ignore WordPress.DB.DirectDatabaseQuery
+		$last_submitted = $wpdb->get_row(
+			$wpdb->prepare(
+				"SELECT * FROM {$t['diagnostics']} WHERE org_id = %d AND status = 'submitted' AND submitted_at IS NOT NULL ORDER BY submitted_at DESC LIMIT 1",
+				$org['id']
+			)
+		);
+		if ( $last_submitted ) {
+			$submitted_at = strtotime( $last_submitted->submitted_at . ' UTC' );
+			$days_since   = ( time() - $submitted_at ) / DAY_IN_SECONDS;
+			if ( $days_since < self::RECHECK_DAYS ) {
+				$next_eligible = gmdate( 'Y-m-d', $submitted_at + self::RECHECK_DAYS * DAY_IN_SECONDS );
+				return new WP_Error(
+					'bd_recheck_too_soon',
+					sprintf(
+						/* translators: %s: the date a re-assessment becomes available. */
+						__( 'This organisation already has a recent assessment. A new one can be started from %s.', 'business-doctor' ),
+						$next_eligible
+					),
+					array(
+						'status'       => 409,
+						'nextEligible' => $next_eligible,
+					)
+				);
+			}
 		}
 		$now = current_time( 'mysql', true );
 		// phpcs:ignore WordPress.DB.DirectDatabaseQuery
