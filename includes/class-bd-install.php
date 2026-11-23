@@ -125,6 +125,11 @@ class BD_Install {
 			'payments'           => $wpdb->prefix . 'bd_payments',
 			'entitlements'       => $wpdb->prefix . 'bd_entitlements',
 			'webhook_events'     => $wpdb->prefix . 'bd_webhook_events',
+			'case_diagnoses'     => $wpdb->prefix . 'bd_case_diagnoses',
+			'prescriptions'      => $wpdb->prefix . 'bd_prescriptions',
+			'actions'            => $wpdb->prefix . 'bd_actions',
+			'kpis'               => $wpdb->prefix . 'bd_kpis',
+			'kpi_checkins'       => $wpdb->prefix . 'bd_kpi_checkins',
 		);
 	}
 
@@ -304,6 +309,108 @@ class BD_Install {
   created_at datetime NOT NULL,
   PRIMARY KEY  (id),
   UNIQUE KEY provider_event (provider,event_id)
+) $charset;"
+		);
+
+		// Phase 4: an AI-drafted (or manually written) diagnosis and prescription for a submitted full
+		// assessment, each reviewed by a second staff member (four-eyes: the reviewer may never be the
+		// drafter), and the action plan and KPIs an approved prescription produces.
+		dbDelta(
+			"CREATE TABLE {$t['case_diagnoses']} (
+  id bigint(20) unsigned NOT NULL AUTO_INCREMENT,
+  diagnostic_id bigint(20) unsigned NOT NULL,
+  org_id bigint(20) unsigned NOT NULL,
+  platform varchar(32) NOT NULL,
+  status varchar(16) NOT NULL DEFAULT 'draft',
+  summary longtext NULL,
+  root_causes longtext NULL,
+  priority varchar(16) NULL,
+  risks longtext NULL,
+  model_confidence decimal(3,2) NULL,
+  ai_drafted tinyint(1) NOT NULL DEFAULT 0,
+  version int(10) unsigned NOT NULL DEFAULT 1,
+  supersedes_id bigint(20) unsigned NULL,
+  created_by bigint(20) unsigned NOT NULL,
+  created_at datetime NOT NULL,
+  reviewed_by bigint(20) unsigned NULL,
+  reviewed_at datetime NULL,
+  review_note text NULL,
+  PRIMARY KEY  (id),
+  KEY diagnostic_id (diagnostic_id),
+  KEY org_id (org_id)
+) $charset;"
+		);
+
+		dbDelta(
+			"CREATE TABLE {$t['prescriptions']} (
+  id bigint(20) unsigned NOT NULL AUTO_INCREMENT,
+  diagnosis_id bigint(20) unsigned NOT NULL,
+  org_id bigint(20) unsigned NOT NULL,
+  platform varchar(32) NOT NULL,
+  status varchar(16) NOT NULL DEFAULT 'draft',
+  items longtext NULL,
+  ai_drafted tinyint(1) NOT NULL DEFAULT 0,
+  version int(10) unsigned NOT NULL DEFAULT 1,
+  supersedes_id bigint(20) unsigned NULL,
+  created_by bigint(20) unsigned NOT NULL,
+  created_at datetime NOT NULL,
+  submitted_at datetime NULL,
+  reviewed_by bigint(20) unsigned NULL,
+  reviewed_at datetime NULL,
+  reviewer_note text NULL,
+  PRIMARY KEY  (id),
+  KEY diagnosis_id (diagnosis_id),
+  KEY org_id (org_id),
+  KEY status (status)
+) $charset;"
+		);
+
+		dbDelta(
+			"CREATE TABLE {$t['actions']} (
+  id bigint(20) unsigned NOT NULL AUTO_INCREMENT,
+  org_id bigint(20) unsigned NOT NULL,
+  prescription_id bigint(20) unsigned NOT NULL,
+  item_index int(10) unsigned NOT NULL DEFAULT 0,
+  item_title varchar(191) NULL,
+  text varchar(255) NOT NULL,
+  owner_role varchar(16) NOT NULL DEFAULT 'owner',
+  assignee_id bigint(20) unsigned NULL,
+  due_date date NULL,
+  status varchar(16) NOT NULL DEFAULT 'open',
+  created_at datetime NOT NULL,
+  updated_at datetime NOT NULL,
+  done_at datetime NULL,
+  PRIMARY KEY  (id),
+  KEY org_id (org_id),
+  KEY prescription_id (prescription_id),
+  KEY status (status)
+) $charset;"
+		);
+
+		dbDelta(
+			"CREATE TABLE {$t['kpis']} (
+  id bigint(20) unsigned NOT NULL AUTO_INCREMENT,
+  org_id bigint(20) unsigned NOT NULL,
+  prescription_id bigint(20) unsigned NOT NULL,
+  name varchar(191) NOT NULL,
+  target varchar(64) NULL,
+  created_at datetime NOT NULL,
+  PRIMARY KEY  (id),
+  KEY org_id (org_id),
+  KEY prescription_id (prescription_id)
+) $charset;"
+		);
+
+		dbDelta(
+			"CREATE TABLE {$t['kpi_checkins']} (
+  id bigint(20) unsigned NOT NULL AUTO_INCREMENT,
+  kpi_id bigint(20) unsigned NOT NULL,
+  value varchar(64) NOT NULL,
+  note text NULL,
+  created_by bigint(20) unsigned NOT NULL,
+  created_at datetime NOT NULL,
+  PRIMARY KEY  (id),
+  KEY kpi_id (kpi_id)
 ) $charset;"
 		);
 	}

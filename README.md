@@ -88,6 +88,7 @@ Developers can hook `bd_result_completed`, which receives the stored row, for ex
 php tests/run.php
 php tests/run-diagnostic.php
 php tests/run-payments.php
+php tests/run-clinical.php
 ```
 
 This runs scoring parity (912 cases from the original TypeScript), band boundaries, question-bank integrity and input rejection, and needs no WordPress install. The plugin was also tested end to end on WordPress 6.8.3 with MariaDB 10.11 and the Twenty Twenty-Five block theme. That run covered the visitor flow on desktop and phone widths, the result surviving a page reload, the email-once rule, the report page, rate limiting, lead follow-up, question-bank draft and publish, and CSV export nonce rejection.
@@ -98,8 +99,8 @@ This runs scoring parity (912 cases from the original TypeScript), band boundari
 |---|---|---|
 | **1** | Free assessments, scoring, results, leads, question banks, reports, settings | Complete |
 | **2 (this release)** | Accounts for business owners (WordPress users with a Business Owner role), organisation profiles, the full paid assessments (SME360 v2, AgriFood360 v1 and ESO360 v1, 100 evidence-weighted questions each) with an evidence class, note and supporting file on every answer, staff review and notification, and Privacy Tools export/erase | Question banks pulled from the published Samakose AI database and the evidence-weighted scorer ported from `samakose-ai`, including the cross-question rule check (a strong claim with no evidence demotes confidence); parity-tested at 12602/12602 checks and end-to-end tested on a real WordPress 6.8 + MariaDB 10.11 install |
-| **3 (this release)** | Payments with Paystack (Ghana cedis), plans and entitlements, invoices | Complete: webhook and verify-on-return from day one; off by default until configured |
-| 4 | AI diagnosis and prescription drafts with expert review and approval, action plans, KPIs and re-assessment | Reuses the Claude prompts and the four-eyes approval rules |
+| **3** | Payments with Paystack (Ghana cedis), plans and entitlements, invoices | Complete: webhook and verify-on-return from day one; off by default until configured |
+| **4 (this release)** | AI diagnosis and prescription drafts with expert review and approval, action plans, KPIs and re-assessment | Complete: Claude-drafted or staff-written diagnoses and prescriptions, both gated by four-eyes review, materialise into a real action plan and KPIs once approved |
 | 5 | Programmes for donors and cohorts, expert network, reporting dashboards | Highest effort; decide scope after phases 2 to 4 are in use |
 
 ## Payments (Phase 3)
@@ -114,6 +115,18 @@ Settings > Payments turns on a Paystack checkout in front of the full assessment
 - Staff can also **grant access manually** from Business Doctor > Payments, for an offline payment or a goodwill grant, with no Paystack involved.
 - Staff get an email when a payment settles, alongside the existing full-assessment submission alert.
 
+## AI diagnosis and prescription (Phase 4)
+
+Business Doctor > Full Assessments now carries the clinical workflow for a submitted, scored assessment:
+
+- **Diagnosis first, prescription second.** A diagnosis explains the weakest areas and their root causes; a prescription is only ever drafted from a *reviewed* diagnosis, and only approved prescriptions turn into a real action plan.
+- **Drafted by Claude or typed by staff, validated identically either way.** Settings > AI holds the Anthropic API key, model id, and the allowed deadline range for prescription actions; it is off by default (`ai_enabled` is unchecked and the fields are blank) until an administrator sets it up. With it off, or for a staff member who prefers to write the diagnosis or prescription directly, both panels offer a manual JSON form instead of the AI button.
+- **Grounded to this assessment, and only this platform's own dimensions.** A diagnosis may cite only question codes actually answered on that assessment as evidence; inventing one is rejected before anything is saved. A prescription item must be tied to one of the platform's eight published dimensions, since this plugin has no separate approved-intervention-library table the way Samakose AI does. A short list of forbidden phrases (certified, investment-ready, official score, guarantee, approved for funding) is checked on every draft, AI-written or not, because a diagnosis or prescription recommends, it does not certify.
+- **Four-eyes, simplified for this plugin's roles.** The reviewer of a diagnosis or prescription may never be the same person who drafted it. Samakose AI's original rule also exempts a case's own assigned consultant; this plugin has no case/consultant assignment model yet, so the rule here is the plain version: reviewer &ne; drafter.
+- **Materialisation on approval.** Approving a prescription creates one action-plan row per action (with a due date computed from its `deadline_days`, and an owner-role action assigned to the organisation's own owner) and one KPI row per item that named one, skipping anything already open for that organisation so re-approval never duplicates work.
+- **Manual drafting is a JSON textarea for now**, not a dynamic add/remove-row form, to keep this phase scoped to the review workflow and the four-eyes gate rather than a rich editor; the expected shape is shown as placeholder text on each form. A friendlier form is a natural fast follow.
+- **The Claude API call itself was not exercised end to end.** `api.anthropic.com` is reachable from this sandbox (confirmed with a deliberately invalid key, which returned a real `401` from Anthropic's own servers, not a sandbox block) and `BD_Claude::complete()` handles a provider error, a malformed JSON reply, and an unreachable network identically as a graceful `WP_Error`, never a fatal. What was not tested here is a *successful* completion, since no real Anthropic API key was available in this sandbox. Configure Settings > AI with a real key and model id and try "Ask Claude to draft a diagnosis" before relying on it.
+
 ## Known limitations
 
 - The "Question Banks" admin screen can now view the full-assessment banks (dimension, weight, criticality, rating anchors, evidence requirement), but still cannot edit them: they are read-only there until a dedicated editor for the richer question shape is built. A correction today needs a change to the source data and a re-import.
@@ -122,6 +135,9 @@ Settings > Payments turns on a Paystack checkout in front of the full assessment
 - Settings > which assessments to offer (`enabled_platforms`) now also gates the full assessment, an organisation cannot be saved against an unrecognised platform, and an organisation with a submitted assessment cannot start a new one for 180 days (matching the ported `recheck.interval_days` rule). A finer-grained re-check workflow (staff-initiated, or tied to a programme cycle) is left for Phase 4/5 case management.
 - No refund flow yet: `BD_Payments::revoke_entitlement()` exists and an admin-post handler is wired up, but nothing in the admin UI calls it yet, since refunds in Paystack itself still need to be reconciled by hand. Revoking today is a direct database or future-UI action, not an automated one.
 - Payments were built and verified against a live WordPress install with a crafted, correctly-signed Paystack webhook payload and the Paystack REST shape from Samakose AI's own integration; the sandbox this was built in cannot reach api.paystack.co, so the actual `/transaction/initialize` and `/transaction/verify` calls have not been exercised against Paystack's live API. Test them against a real `sk_test_` key before accepting real payments.
+- Manual diagnosis and prescription authoring uses a raw JSON textarea rather than a guided form; see "AI diagnosis and prescription (Phase 4)" above.
+- A successful Claude completion was not exercised in this sandbox (no real API key available), only the configured-but-failing and not-configured paths; see "AI diagnosis and prescription (Phase 4)" above.
+- There is no re-assessment scheduling or reminder beyond the existing 180-day re-check cooldown; a new round of diagnosis and prescription for a re-assessed organisation is a fresh manual or AI draft, not an automatic comparison against the previous one.
 
 ## Licence
 

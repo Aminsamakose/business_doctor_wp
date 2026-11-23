@@ -40,6 +40,11 @@ class BD_Settings {
 				'AGRIFOOD360' => 500,
 				'ESO360'      => 500,
 			),
+			'ai_enabled'          => 0,
+			'claude_api_key'      => '',
+			'claude_model'        => '',
+			'prescription_min_days' => 3,
+			'prescription_max_days' => 120,
 		);
 	}
 
@@ -137,6 +142,24 @@ class BD_Settings {
 			$out_prices[ $code ] = max( 0, round( $v, 2 ) );
 		}
 		$out['platform_prices_ghs'] = $out_prices;
+
+		$out['ai_enabled'] = empty( $in['ai_enabled'] ) ? 0 : 1;
+		// Same "blank keeps the saved value" rule as the Paystack key: clearing this field in the form
+		// never deletes a live key by accident.
+		$out['claude_api_key'] = isset( $in['claude_api_key'] ) && '' !== trim( (string) $in['claude_api_key'] )
+			? sanitize_text_field( trim( (string) $in['claude_api_key'] ) )
+			: $old['claude_api_key'];
+		$out['claude_model']   = isset( $in['claude_model'] ) ? sanitize_text_field( trim( (string) $in['claude_model'] ) ) : $d['claude_model'];
+
+		$min = isset( $in['prescription_min_days'] ) ? (int) $in['prescription_min_days'] : $d['prescription_min_days'];
+		$max = isset( $in['prescription_max_days'] ) ? (int) $in['prescription_max_days'] : $d['prescription_max_days'];
+		if ( $min > 0 && $min < $max && $max <= 365 ) {
+			$out['prescription_min_days'] = $min;
+			$out['prescription_max_days'] = $max;
+		} else {
+			$out['prescription_min_days'] = $old['prescription_min_days'];
+			$out['prescription_max_days'] = $old['prescription_max_days'];
+		}
 
 		return $out;
 	}
