@@ -15,6 +15,7 @@ class BD_Mailer {
 	 */
 	public static function init() {
 		add_action( 'bd_result_completed', array( __CLASS__, 'notify_staff' ) );
+		add_action( 'bd_diagnostic_submitted', array( __CLASS__, 'notify_staff_diagnostic' ) );
 	}
 
 	/**
@@ -116,6 +117,36 @@ class BD_Mailer {
 			sprintf( __( 'Score: %1$s/100 (%2$s)', 'business-doctor' ), $row['overall_score'], $row['classification'] ),
 			'',
 			__( 'The visitor acknowledged the privacy notice. That is not consent to marketing; follow up only as your privacy notice allows.', 'business-doctor' ),
+			'',
+			$link,
+		);
+		wp_mail( $s['notify_email'], $subject, implode( "\n", $lines ) );
+	}
+
+	/**
+	 * Tells staff that a business owner has submitted the full assessment.
+	 *
+	 * @param array $d Diagnostic, as returned by BD_Diagnostics::get().
+	 */
+	public static function notify_staff_diagnostic( array $d ) {
+		$s = BD_Settings::all();
+		if ( empty( $s['notify_on_complete'] ) || ! is_email( $s['notify_email'] ) ) {
+			return;
+		}
+		$org  = BD_Organisations::get( $d['org_id'] );
+		$user = get_userdata( $d['user_id'] );
+		$link = admin_url( 'admin.php?page=bd-diagnostics&action=view&id=' . (int) $d['id'] );
+		/* translators: 1: platform name, 2: score, 3: maturity band. */
+		$subject = sprintf( __( 'New full assessment: %1$s, %2$s/100 (%3$s)', 'business-doctor' ), BD_Frameworks::short_name( $d['platform'] ), $d['overall_score'], $d['maturity'] );
+		$lines   = array(
+			/* translators: %s: organisation name. */
+			sprintf( __( 'Organisation: %s', 'business-doctor' ), $org ? $org['name'] : __( '(no organisation name)', 'business-doctor' ) ),
+			/* translators: %s: owner name and email. */
+			sprintf( __( 'Owner: %s', 'business-doctor' ), $user ? $user->display_name . ' (' . $user->user_email . ')' : '' ),
+			/* translators: %s: platform. */
+			sprintf( __( 'Platform: %s', 'business-doctor' ), BD_Frameworks::short_name( $d['platform'] ) ),
+			/* translators: 1: score, 2: maturity band, 3: confidence. */
+			sprintf( __( 'Score: %1$s/100 (%2$s), confidence %3$s', 'business-doctor' ), $d['overall_score'], $d['maturity'], $d['confidence'] ),
 			'',
 			$link,
 		);

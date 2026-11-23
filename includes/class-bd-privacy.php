@@ -88,6 +88,36 @@ class BD_Privacy {
 				),
 			);
 		}
+		foreach ( self::owner_user_id( $email ) ? BD_Organisations::for_user( self::owner_user_id( $email ) ) : array() as $org ) {
+			$items[] = array(
+				'group_id'    => 'business-doctor-owner',
+				'group_label' => __( 'Business Doctor organisation profiles', 'business-doctor' ),
+				'item_id'     => 'bd-org-' . $org['id'],
+				'data'        => array(
+					array( 'name' => __( 'Platform', 'business-doctor' ), 'value' => BD_Frameworks::short_name( $org['platform'] ) ),
+					array( 'name' => __( 'Organisation name', 'business-doctor' ), 'value' => $org['name'] ),
+					array( 'name' => __( 'Sector', 'business-doctor' ), 'value' => (string) $org['sector'] ),
+					array( 'name' => __( 'Region', 'business-doctor' ), 'value' => (string) $org['region'] ),
+					array( 'name' => __( 'Phone', 'business-doctor' ), 'value' => (string) $org['phone'] ),
+					array( 'name' => __( 'Website', 'business-doctor' ), 'value' => (string) $org['website'] ),
+				),
+			);
+		}
+		foreach ( self::owner_user_id( $email ) ? BD_Diagnostics::for_user( self::owner_user_id( $email ) ) : array() as $d ) {
+			$items[] = array(
+				'group_id'    => 'business-doctor-owner',
+				'group_label' => __( 'Business Doctor organisation profiles', 'business-doctor' ),
+				'item_id'     => 'bd-diagnostic-' . $d['id'],
+				'data'        => array(
+					array( 'name' => __( 'Platform', 'business-doctor' ), 'value' => BD_Frameworks::short_name( $d['platform'] ) ),
+					array( 'name' => __( 'Status', 'business-doctor' ), 'value' => ucfirst( $d['status'] ) ),
+					array( 'name' => __( 'Overall score', 'business-doctor' ), 'value' => null === $d['overall_score'] ? '' : $d['overall_score'] . ' (' . $d['maturity'] . ')' ),
+					array( 'name' => __( 'Started', 'business-doctor' ), 'value' => (string) $d['started_at'] ),
+					array( 'name' => __( 'Submitted', 'business-doctor' ), 'value' => (string) $d['submitted_at'] ),
+					array( 'name' => __( 'Your individual answers and any evidence notes or files, used to calculate these scores', 'business-doctor' ), 'value' => __( 'Available on request from the site administrator, or erase this record to remove them.', 'business-doctor' ) ),
+				),
+			);
+		}
 		return array(
 			'data' => $items,
 			'done' => true,
@@ -95,7 +125,20 @@ class BD_Privacy {
 	}
 
 	/**
-	 * Erases a person's results.
+	 * The business-owner WordPress user id for an email address, if one exists.
+	 *
+	 * @param string $email Email.
+	 * @return int|null
+	 */
+	private static function owner_user_id( $email ) {
+		$user = get_user_by( 'email', $email );
+		return ( $user && BD_Accounts::is_owner( $user->ID ) ) ? $user->ID : null;
+	}
+
+	/**
+	 * Erases a person's results, organisation profiles, full assessments and any evidence files
+	 * attached to their answers. Does not delete the WordPress user account itself, the same way
+	 * erasure never deletes the account that requested it; only the Business Doctor data it holds.
 	 *
 	 * @param string $email Email.
 	 * @return array
@@ -103,6 +146,30 @@ class BD_Privacy {
 	public static function erase( $email ) {
 		$ids     = wp_list_pluck( self::rows_for( $email ), 'id' );
 		$removed = BD_Results::delete( $ids );
+
+		$user_id = self::owner_user_id( $email );
+		if ( $user_id ) {
+			global $wpdb;
+			$t = BD_Install::tables();
+			foreach ( BD_Diagnostics::for_user( $user_id ) as $d ) {
+				foreach ( BD_Diagnostics::answers( $d['id'] ) as $a ) {
+					if ( ! empty( $a['attachmentId'] ) ) {
+						wp_delete_attachment( (int) $a['attachmentId'], true );
+					}
+				}
+				// phpcs:ignore WordPress.DB.DirectDatabaseQuery
+				$wpdb->delete( $t['diagnostic_answers'], array( 'diagnostic_id' => $d['id'] ) );
+				// phpcs:ignore WordPress.DB.DirectDatabaseQuery
+				$wpdb->delete( $t['diagnostics'], array( 'id' => $d['id'] ) );
+				$removed++;
+			}
+			foreach ( BD_Organisations::for_user( $user_id ) as $org ) {
+				// phpcs:ignore WordPress.DB.DirectDatabaseQuery
+				$wpdb->delete( $t['organisations'], array( 'id' => $org['id'] ) );
+				$removed++;
+			}
+		}
+
 		return array(
 			'items_removed'  => $removed > 0,
 			'items_retained' => false,
@@ -118,7 +185,8 @@ class BD_Privacy {
 		if ( ! function_exists( 'wp_add_privacy_policy_content' ) ) {
 			return;
 		}
-		$text = '<p>' . __( 'When you take a free Business Health Assessment we store your name, email address, the assessment you chose, your scores and the time you finished. Your individual answers are used to calculate your scores and are not stored. We keep a salted hash of your IP address for abuse prevention, not the address itself. Acknowledging this notice is not consent to marketing.', 'business-doctor' ) . '</p>';
+		$text = '<p>' . __( 'When you take a free Business Health Assessment we store your name, email address, the assessment you chose, your scores and the time you finished. Your individual answers are used to calculate your scores and are not stored. We keep a salted hash of your IP address for abuse prevention, not the address itself. Acknowledging this notice is not consent to marketing.', 'business-doctor' ) . '</p>'
+			. '<p>' . __( 'If you register for the full Business Health Assessment, we additionally store your account details, your organisation profile, your individual answers, any evidence notes or supporting documents you attach, and your scores. You may request a copy or deletion of this data at any time.', 'business-doctor' ) . '</p>';
 		wp_add_privacy_policy_content( 'Business Doctor', wp_kses_post( $text ) );
 	}
 }

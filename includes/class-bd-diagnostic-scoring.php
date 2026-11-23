@@ -150,6 +150,24 @@ class BD_Diagnostic_Scoring {
 	}
 
 	/**
+	 * Cross-question consistency check: a strong claim (rated 3 or 4) with no evidence at all is a
+	 * contradiction. Direct port of the rule check in Samakose AI's computeScore()
+	 * (src/services/diagnostics.ts): `!lite.some((r) => !r.notApplicable && r.value >= 3 &&
+	 * r.evidenceClass === 'Missing')`.
+	 *
+	 * @param array $responses List of array{value, notApplicable?, evidenceClass}.
+	 * @return bool
+	 */
+	public static function rule_checks_passed( array $responses ) {
+		foreach ( $responses as $r ) {
+			if ( empty( $r['notApplicable'] ) && isset( $r['value'] ) && (int) $r['value'] >= 3 && 'Missing' === ( $r['evidenceClass'] ?? null ) ) {
+				return false;
+			}
+		}
+		return true;
+	}
+
+	/**
 	 * Confidence in a scored result, from evidence strength, rule checks and data-quality validation.
 	 * The model never states a confidence itself; this is the deterministic read of the evidence.
 	 *

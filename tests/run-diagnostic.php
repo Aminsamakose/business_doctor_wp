@@ -114,5 +114,14 @@ bd_check( 'Medium' === BD_Diagnostic_Scoring::confidence_class( array( 'Verified
 bd_check( 'Low' === BD_Diagnostic_Scoring::confidence_class( array( 'Verified' => 0.1 ), true, true ), 'Confidence: low share' );
 bd_check( 'Medium' === BD_Diagnostic_Scoring::confidence_class( array( 'Verified' => 0.7 ), false, true ), 'Confidence: failed rule checks demote by one level' );
 
+/* Rule check: a strong claim (3 or 4) with no evidence at all is a contradiction. Port of the check
+ * in Samakose AI's computeScore() (src/services/diagnostics.ts). */
+bd_check( true === BD_Diagnostic_Scoring::rule_checks_passed( array() ), 'Rule check: no responses passes' );
+bd_check( true === BD_Diagnostic_Scoring::rule_checks_passed( array( array( 'value' => 2, 'evidenceClass' => 'Missing' ) ) ), 'Rule check: weak claim with no evidence is fine' );
+bd_check( true === BD_Diagnostic_Scoring::rule_checks_passed( array( array( 'value' => 4, 'evidenceClass' => 'Self-reported' ) ) ), 'Rule check: strong claim with some evidence is fine' );
+bd_check( false === BD_Diagnostic_Scoring::rule_checks_passed( array( array( 'value' => 3, 'evidenceClass' => 'Missing' ) ) ), 'Rule check: strong claim (3) with no evidence fails' );
+bd_check( false === BD_Diagnostic_Scoring::rule_checks_passed( array( array( 'value' => 4, 'evidenceClass' => 'Missing' ) ) ), 'Rule check: strong claim (4) with no evidence fails' );
+bd_check( true === BD_Diagnostic_Scoring::rule_checks_passed( array( array( 'value' => 4, 'evidenceClass' => 'Missing', 'notApplicable' => true ) ) ), 'Rule check: not-applicable answers are ignored' );
+
 fwrite( STDOUT, "$checks checks, $fails failed\n" );
 exit( $fails ? 1 : 0 );

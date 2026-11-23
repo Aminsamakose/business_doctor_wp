@@ -13,6 +13,10 @@ defined( 'ABSPATH' ) || exit;
 class BD_Diagnostics {
 
 	const EVIDENCE_CLASSES = array( 'Verified', 'Document-supported', 'Self-reported', 'Unverified', 'Missing' );
+	// A business owner may self-declare any evidence class except "Verified": that one means a
+	// consultant or other staff member has independently checked the evidence, which an owner
+	// cannot do for themselves. Mirrors OWNER_CLASSES in Samakose AI (src/services/diagnostics.ts).
+	const OWNER_EVIDENCE_CLASSES = array( 'Self-reported', 'Unverified', 'Missing', 'Document-supported' );
 	const MIN_COMPLETION   = 0.9;
 
 	/**
@@ -145,9 +149,12 @@ class BD_Diagnostics {
 	 * @param array  $diagnostic Diagnostic, must be a draft.
 	 * @param array  $question   The question being answered, from the published framework.
 	 * @param array  $answer     Keys: value (0-4 or null), notApplicable, evidenceClass, evidenceNote, attachmentId.
+	 * @param bool   $as_staff   True if the caller may mark evidence "Verified" (only a consultant or
+	 *                           other staff member can independently verify evidence; a business owner
+	 *                           cannot verify their own). Defaults to false, the owner-facing case.
 	 * @return true|WP_Error
 	 */
-	public static function save_answer( array $diagnostic, array $question, array $answer ) {
+	public static function save_answer( array $diagnostic, array $question, array $answer, $as_staff = false ) {
 		global $wpdb;
 		if ( 'draft' !== $diagnostic['status'] ) {
 			return new WP_Error( 'bd_submitted', __( 'This assessment has already been submitted and can no longer be changed.', 'business-doctor' ), array( 'status' => 409 ) );
@@ -163,8 +170,12 @@ class BD_Diagnostics {
 				return new WP_Error( 'bd_invalid', __( 'Choose one of the five rating levels for this question.', 'business-doctor' ), array( 'status' => 422 ) );
 			}
 		}
-		$evidence_class = (string) ( $answer['evidenceClass'] ?? 'Self-reported' );
-		if ( ! in_array( $evidence_class, self::EVIDENCE_CLASSES, true ) ) {
+		$allowed_classes = $as_staff ? self::EVIDENCE_CLASSES : self::OWNER_EVIDENCE_CLASSES;
+		$evidence_class  = (string) ( $answer['evidenceClass'] ?? 'Self-reported' );
+		if ( ! in_array( $evidence_class, $allowed_classes, true ) ) {
+			if ( ! $as_staff && 'Verified' === $evidence_class ) {
+				return new WP_Error( 'bd_invalid', __( 'Only a reviewer can mark evidence as independently verified.', 'business-doctor' ), array( 'status' => 422 ) );
+			}
 			$evidence_class = 'Self-reported';
 		}
 		$t    = BD_Install::tables();
@@ -214,7 +225,8 @@ class BD_Diagnostics {
 			return new WP_Error( 'bd_incomplete', sprintf( __( 'Please answer at least 90%% of the assessment before submitting. You have completed %d%% so far.', 'business-doctor' ), round( $completion['completion'] * 100 ) ), array( 'status' => 422 ) );
 		}
 		$scored = BD_Diagnostic_Scoring::score( $response_list, $fw['questions'] );
-		$confidence = BD_Diagnostic_Scoring::confidence_class( $scored['evidenceShare'], true, true );
+		$rule_checks_passed = BD_Diagnostic_Scoring::rule_checks_passed( $response_list );
+		$confidence = BD_Diagnostic_Scoring::confidence_class( $scored['evidenceShare'], $rule_checks_passed, true );
 
 		$t    = BD_Install::tables();
 		$now  = current_time( 'mysql', true );

@@ -50,6 +50,7 @@ class BD_Owner_Shortcodes {
 			'api'            => esc_url_raw( rest_url( BD_Rest_Owner::NS ) ),
 			'nonce'          => wp_create_nonce( 'wp_rest' ),
 			'loggedIn'       => is_user_logged_in() && BD_Accounts::is_owner( get_current_user_id() ),
+			'lostPasswordUrl' => wp_lostpassword_url(),
 			'platforms'      => $platforms,
 			'i18n'           => array(
 				'signIn'          => __( 'Sign in', 'business-doctor' ),
@@ -60,6 +61,7 @@ class BD_Owner_Shortcodes {
 				'continue'        => __( 'Continue', 'business-doctor' ),
 				'haveAccount'     => __( 'Already have an account? Sign in', 'business-doctor' ),
 				'needAccount'     => __( "Don't have an account? Register", 'business-doctor' ),
+				'forgotPassword'  => __( 'Forgot your password?', 'business-doctor' ),
 				'choosePlatform'  => __( 'Choose an assessment', 'business-doctor' ),
 				'orgProfile'      => __( 'Organisation profile', 'business-doctor' ),
 				'orgName'         => __( 'Organisation name', 'business-doctor' ),
@@ -91,11 +93,10 @@ class BD_Owner_Shortcodes {
 				'network'         => __( 'Could not reach the server. Please check your connection.', 'business-doctor' ),
 				'completeOrg'     => __( 'Please complete your organisation profile.', 'business-doctor' ),
 			),
+			// "Verified" is left out deliberately: only a reviewer can mark evidence as independently
+			// verified, since a business owner cannot verify their own evidence. The REST API rejects
+			// it from an owner too, so this is a UI convenience, not the only guard.
 			'evidenceClasses' => array(
-				array(
-					'value' => 'Verified',
-					'label' => __( 'Independently verified', 'business-doctor' ),
-				),
 				array(
 					'value' => 'Document-supported',
 					'label' => __( 'Supported by a document', 'business-doctor' ),
@@ -107,6 +108,10 @@ class BD_Owner_Shortcodes {
 				array(
 					'value' => 'Unverified',
 					'label' => __( 'Unverified', 'business-doctor' ),
+				),
+				array(
+					'value' => 'Missing',
+					'label' => __( 'No evidence available', 'business-doctor' ),
 				),
 			),
 		);

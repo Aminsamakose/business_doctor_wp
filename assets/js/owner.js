@@ -90,12 +90,11 @@
 		var switchLink = el( 'button', { type: 'button', class: 'bd-link', text: 'register' === mode ? T.haveAccount : T.needAccount, onclick: function () {
 			self.auth( 'register' === mode ? 'login' : 'register' );
 		} } );
-		this.root.appendChild( el( 'div', { class: 'bd-card' }, [
-			el( 'h2', { text: 'register' === mode ? T.register : T.signIn } ),
-			err,
-			form,
-			switchLink,
-		] ) );
+		var children = [ el( 'h2', { text: 'register' === mode ? T.register : T.signIn } ), err, form, switchLink ];
+		if ( 'login' === mode && CFG.lostPasswordUrl ) {
+			children.push( el( 'a', { class: 'bd-link', href: CFG.lostPasswordUrl, text: T.forgotPassword } ) );
+		}
+		this.root.appendChild( el( 'div', { class: 'bd-card' }, children ) );
 	};
 
 	/* --- Platform choice --- */
