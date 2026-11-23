@@ -303,7 +303,7 @@ class BD_Rest_Owner {
 		if ( ! $fw ) {
 			return new WP_Error( 'bd_not_found', __( 'The question bank for this assessment is missing.', 'business-doctor' ), array( 'status' => 500 ) );
 		}
-		$code     = bd_sanitize_code( (string) $req->get_param( 'questionCode' ) );
+		$code     = sanitize_text_field( (string) $req->get_param( 'questionCode' ) );
 		$question = null;
 		foreach ( $fw['questions'] as $q ) {
 			if ( $q['code'] === $code ) {
