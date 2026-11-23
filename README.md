@@ -86,6 +86,8 @@ Developers can hook `bd_result_completed`, which receives the stored row, for ex
 
 ```
 php tests/run.php
+php tests/run-diagnostic.php
+php tests/run-payments.php
 ```
 
 This runs scoring parity (912 cases from the original TypeScript), band boundaries, question-bank integrity and input rejection, and needs no WordPress install. The plugin was also tested end to end on WordPress 6.8.3 with MariaDB 10.11 and the Twenty Twenty-Five block theme. That run covered the visitor flow on desktop and phone widths, the result surviving a page reload, the email-once rule, the report page, rate limiting, lead follow-up, question-bank draft and publish, and CSV export nonce rejection.
@@ -96,17 +98,30 @@ This runs scoring parity (912 cases from the original TypeScript), band boundari
 |---|---|---|
 | **1** | Free assessments, scoring, results, leads, question banks, reports, settings | Complete |
 | **2 (this release)** | Accounts for business owners (WordPress users with a Business Owner role), organisation profiles, the full paid assessments (SME360 v2, AgriFood360 v1 and ESO360 v1, 100 evidence-weighted questions each) with an evidence class, note and supporting file on every answer, staff review and notification, and Privacy Tools export/erase | Question banks pulled from the published Samakose AI database and the evidence-weighted scorer ported from `samakose-ai`, including the cross-question rule check (a strong claim with no evidence demotes confidence); parity-tested at 12602/12602 checks and end-to-end tested on a real WordPress 6.8 + MariaDB 10.11 install |
-| 3 | Payments with Paystack (Ghana cedis), plans and entitlements, invoices | Webhook and verify-on-return from day one |
+| **3 (this release)** | Payments with Paystack (Ghana cedis), plans and entitlements, invoices | Complete: webhook and verify-on-return from day one; off by default until configured |
 | 4 | AI diagnosis and prescription drafts with expert review and approval, action plans, KPIs and re-assessment | Reuses the Claude prompts and the four-eyes approval rules |
 | 5 | Programmes for donors and cohorts, expert network, reporting dashboards | Highest effort; decide scope after phases 2 to 4 are in use |
 
-## Known limitations (Phase 2)
+## Payments (Phase 3)
+
+Settings > Payments turns on a Paystack checkout in front of the full assessment:
+
+- **Off by default.** Nothing changes for an existing site until an administrator ticks "Require payment" and saves a Paystack secret key; a site with payments off behaves exactly as Phase 2 did.
+- **Per-platform GHS pricing**, with a price of 0 meaning that platform's full assessment is not for sale.
+- An owner who has not paid sees a "Pay with Paystack" panel instead of the assessment when they try to start it; the REST API itself enforces this (`402 Payment Required`), not just the front end.
+- **Webhook and verify-on-return from day one.** The authoritative settlement path is `/wp-json/business-doctor/v1/webhooks/paystack` (signature-checked with HMAC-SHA512, idempotent per event id, amount-and-currency checked against what was invoiced); the owner's return page also re-checks the same reference directly with Paystack so the UI does not have to wait for the webhook.
+- A settled payment is **idempotently entitled**: one organisation, one platform, one standing entitlement, which is what `BD_Rest_Owner::start()` checks. A plain invoice number (prefix, year-month, payment id) is recorded for each successful payment; invoice and payment records are kept after a Privacy Tools erasure request, for accounting, the same way a shop keeps its sales ledger.
+- Staff can also **grant access manually** from Business Doctor > Payments, for an offline payment or a goodwill grant, with no Paystack involved.
+- Staff get an email when a payment settles, alongside the existing full-assessment submission alert.
+
+## Known limitations
 
 - The "Question Banks" admin screen can now view the full-assessment banks (dimension, weight, criticality, rating anchors, evidence requirement), but still cannot edit them: they are read-only there until a dedicated editor for the richer question shape is built. A correction today needs a change to the source data and a re-import.
 - Routing a new lead to a specific staff member (as in Samakose AI's admin) is not ported; Phase 1's single notification-email setting covers both phases for now.
-- No payments, plans or entitlements yet (Phase 3): a business owner can currently register and take the full assessment without being charged.
 - Business owners use WordPress's own "Lost your password?" flow (there is a link to it on the sign-in screen); there is no custom in-app password reset.
 - Settings > which assessments to offer (`enabled_platforms`) now also gates the full assessment, an organisation cannot be saved against an unrecognised platform, and an organisation with a submitted assessment cannot start a new one for 180 days (matching the ported `recheck.interval_days` rule). A finer-grained re-check workflow (staff-initiated, or tied to a programme cycle) is left for Phase 4/5 case management.
+- No refund flow yet: `BD_Payments::revoke_entitlement()` exists and an admin-post handler is wired up, but nothing in the admin UI calls it yet, since refunds in Paystack itself still need to be reconciled by hand. Revoking today is a direct database or future-UI action, not an automated one.
+- Payments were built and verified against a live WordPress install with a crafted, correctly-signed Paystack webhook payload and the Paystack REST shape from Samakose AI's own integration; the sandbox this was built in cannot reach api.paystack.co, so the actual `/transaction/initialize` and `/transaction/verify` calls have not been exercised against Paystack's live API. Test them against a real `sk_test_` key before accepting real payments.
 
 ## Licence
 

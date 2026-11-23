@@ -87,6 +87,24 @@ class BD_Rest_Owner {
 		);
 		register_rest_route(
 			self::NS,
+			'/owner/payments/(?P<platform>[A-Z0-9_]+)/checkout',
+			array(
+				'methods'             => 'POST',
+				'callback'            => array( __CLASS__, 'start_checkout' ),
+				'permission_callback' => array( __CLASS__, 'permission' ),
+			)
+		);
+		register_rest_route(
+			self::NS,
+			'/owner/payments/(?P<reference>[A-Za-z0-9-]+)',
+			array(
+				'methods'             => 'GET',
+				'callback'            => array( __CLASS__, 'get_payment' ),
+				'permission_callback' => array( __CLASS__, 'permission' ),
+			)
+		);
+		register_rest_route(
+			self::NS,
 			'/owner/diagnostics/(?P<id>\d+)',
 			array(
 				'methods'             => 'GET',
@@ -270,6 +288,17 @@ class BD_Rest_Owner {
 		if ( ! $org ) {
 			return new WP_Error( 'bd_no_org', __( 'Please complete your organisation profile before starting the assessment.', 'business-doctor' ), array( 'status' => 422 ) );
 		}
+		$price = BD_Payments::price_for_platform( $platform );
+		if ( null !== $price && ! BD_Payments::has_entitlement( $org['id'], $platform ) ) {
+			return new WP_Error(
+				'bd_payment_required',
+				__( 'Payment is required before starting this assessment.', 'business-doctor' ),
+				array(
+					'status'    => 402,
+					'amountGhs' => $price,
+				)
+			);
+		}
 		$d = BD_Diagnostics::start_or_resume( $org, $fw );
 		if ( is_wp_error( $d ) ) {
 			return $d;
@@ -282,6 +311,50 @@ class BD_Rest_Owner {
 					'dimensions' => $fw['dimensions'],
 					'answers'    => BD_Diagnostics::answers( $d['id'] ),
 				)
+			)
+		);
+	}
+
+	/**
+	 * POST /owner/payments/{platform}/checkout  { returnUrl }
+	 *
+	 * @param WP_REST_Request $req Request.
+	 * @return WP_REST_Response|WP_Error
+	 */
+	public static function start_checkout( WP_REST_Request $req ) {
+		$platform = bd_sanitize_code( (string) $req['platform'] );
+		$org      = BD_Organisations::get_for( get_current_user_id(), $platform );
+		if ( ! $org ) {
+			return new WP_Error( 'bd_no_org', __( 'Please complete your organisation profile first.', 'business-doctor' ), array( 'status' => 422 ) );
+		}
+		if ( ! BD_Rate_Limit::hit( 'owner_checkout', 10, HOUR_IN_SECONDS ) ) {
+			return new WP_Error( 'bd_rate_limited', __( 'Too many attempts. Please wait a few minutes and try again.', 'business-doctor' ), array( 'status' => 429 ) );
+		}
+		$user   = wp_get_current_user();
+		$result = BD_Payments::start_checkout( $org, $user, (string) $req->get_param( 'returnUrl' ) );
+		return is_wp_error( $result ) ? $result : rest_ensure_response( $result );
+	}
+
+	/**
+	 * GET /owner/payments/{reference} -- the owner's own payment, re-checked against Paystack if
+	 * still pending. Used by the page the owner lands back on after checkout.
+	 *
+	 * @param WP_REST_Request $req Request.
+	 * @return WP_REST_Response|WP_Error
+	 */
+	public static function get_payment( WP_REST_Request $req ) {
+		$payment = BD_Payments::get_by_reference( (string) $req['reference'] );
+		if ( ! $payment || (int) $payment['user_id'] !== get_current_user_id() ) {
+			return new WP_Error( 'bd_not_found', __( 'Payment not found.', 'business-doctor' ), array( 'status' => 404 ) );
+		}
+		$payment = BD_Payments::verify_and_settle( $payment );
+		return rest_ensure_response(
+			array(
+				'reference'     => $payment['reference'],
+				'platform'      => $payment['platform'],
+				'status'        => $payment['status'],
+				'amountGhs'     => (float) $payment['amount_ghs'],
+				'invoiceNumber' => $payment['invoice_number'],
 			)
 		);
 	}

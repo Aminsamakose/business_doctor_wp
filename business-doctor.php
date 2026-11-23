@@ -18,8 +18,8 @@
 
 defined( 'ABSPATH' ) || exit;
 
-define( 'BD_VERSION', '1.1.0' );
-define( 'BD_DB_VERSION', '2' );
+define( 'BD_VERSION', '1.2.0' );
+define( 'BD_DB_VERSION', '3' );
 define( 'BD_FILE', __FILE__ );
 define( 'BD_DIR', plugin_dir_path( __FILE__ ) );
 define( 'BD_URL', plugin_dir_url( __FILE__ ) );
@@ -42,6 +42,9 @@ require_once BD_DIR . 'includes/class-bd-organisations.php';
 require_once BD_DIR . 'includes/class-bd-diagnostics.php';
 require_once BD_DIR . 'includes/class-bd-rest-owner.php';
 require_once BD_DIR . 'includes/class-bd-owner-shortcodes.php';
+require_once BD_DIR . 'includes/class-bd-paystack.php';
+require_once BD_DIR . 'includes/class-bd-payments.php';
+require_once BD_DIR . 'includes/class-bd-rest-webhooks.php';
 
 if ( is_admin() ) {
 	require_once BD_DIR . 'includes/admin/class-bd-admin.php';
@@ -49,6 +52,8 @@ if ( is_admin() ) {
 	require_once BD_DIR . 'includes/admin/class-bd-frameworks-admin.php';
 	require_once BD_DIR . 'includes/admin/class-bd-diagnostics-admin.php';
 	require_once BD_DIR . 'includes/admin/class-bd-diagnostics-table.php';
+	require_once BD_DIR . 'includes/admin/class-bd-payments-admin.php';
+	require_once BD_DIR . 'includes/admin/class-bd-payments-table.php';
 }
 
 register_activation_hook( __FILE__, array( 'BD_Install', 'activate' ) );
@@ -68,9 +73,11 @@ function bd_boot() {
 	BD_Accounts::init();
 	BD_Rest_Owner::init();
 	BD_Owner_Shortcodes::init();
+	BD_Rest_Webhooks::init();
 	if ( is_admin() ) {
 		BD_Admin::init();
 		BD_Frameworks_Admin::init();
 		BD_Diagnostics_Admin::init();
+		BD_Payments_Admin::init();
 	}
 }

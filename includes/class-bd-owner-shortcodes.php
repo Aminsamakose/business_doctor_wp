@@ -52,6 +52,7 @@ class BD_Owner_Shortcodes {
 			'loggedIn'       => is_user_logged_in() && BD_Accounts::is_owner( get_current_user_id() ),
 			'lostPasswordUrl' => wp_lostpassword_url(),
 			'platforms'      => $platforms,
+			'paymentsEnabled' => (bool) BD_Settings::get( 'payments_enabled' ),
 			'i18n'           => array(
 				'signIn'          => __( 'Sign in', 'business-doctor' ),
 				'register'        => __( 'Create an account', 'business-doctor' ),
@@ -92,6 +93,16 @@ class BD_Owner_Shortcodes {
 				'generic'         => __( 'Something went wrong. Please try again.', 'business-doctor' ),
 				'network'         => __( 'Could not reach the server. Please check your connection.', 'business-doctor' ),
 				'completeOrg'     => __( 'Please complete your organisation profile.', 'business-doctor' ),
+				'unlockTitle'     => __( 'Unlock the full assessment', 'business-doctor' ),
+				'unlockBody'      => __( 'Pay once to unlock this organisation\'s full, evidence-based assessment.', 'business-doctor' ),
+				'payNow'          => __( 'Pay with Paystack', 'business-doctor' ),
+				'redirecting'     => __( 'Redirecting to Paystack...', 'business-doctor' ),
+				'verifyingPayment' => __( 'Checking your payment...', 'business-doctor' ),
+				'paymentSuccess'  => __( 'Payment received. You can now start the assessment.', 'business-doctor' ),
+				'paymentFailed'   => __( 'That payment did not go through. You can try again below.', 'business-doctor' ),
+				'paymentPending'  => __( 'Your payment is still being confirmed. This can take a minute; refresh to check again.', 'business-doctor' ),
+				'notConfigured'   => __( 'Online payment is not set up yet. Please contact us to arrange access.', 'business-doctor' ),
+				'invoice'         => __( 'Invoice', 'business-doctor' ),
 			),
 			// "Verified" is left out deliberately: only a reviewer can mark evidence as independently
 			// verified, since a business owner cannot verify their own evidence. The REST API rejects

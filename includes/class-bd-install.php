@@ -122,6 +122,9 @@ class BD_Install {
 			'organisations'      => $wpdb->prefix . 'bd_organisations',
 			'diagnostics'        => $wpdb->prefix . 'bd_diagnostics',
 			'diagnostic_answers' => $wpdb->prefix . 'bd_diagnostic_answers',
+			'payments'           => $wpdb->prefix . 'bd_payments',
+			'entitlements'       => $wpdb->prefix . 'bd_entitlements',
+			'webhook_events'     => $wpdb->prefix . 'bd_webhook_events',
 		);
 	}
 
@@ -247,6 +250,60 @@ class BD_Install {
   updated_at datetime NOT NULL,
   PRIMARY KEY  (id),
   UNIQUE KEY diagnostic_question (diagnostic_id,question_code)
+) $charset;"
+		);
+
+		// Phase 3: Paystack checkout, entitlements that unlock the full assessment, and a minimal
+		// invoice record generated once a payment settles.
+		dbDelta(
+			"CREATE TABLE {$t['payments']} (
+  id bigint(20) unsigned NOT NULL AUTO_INCREMENT,
+  user_id bigint(20) unsigned NOT NULL,
+  org_id bigint(20) unsigned NOT NULL,
+  platform varchar(32) NOT NULL,
+  reference varchar(64) NOT NULL,
+  amount_ghs decimal(10,2) NOT NULL,
+  status varchar(16) NOT NULL DEFAULT 'pending',
+  invoice_number varchar(32) NULL,
+  provider_payload longtext NULL,
+  created_at datetime NOT NULL,
+  updated_at datetime NOT NULL,
+  PRIMARY KEY  (id),
+  UNIQUE KEY reference (reference),
+  KEY org_id (org_id),
+  KEY user_id (user_id),
+  KEY status (status)
+) $charset;"
+		);
+
+		dbDelta(
+			"CREATE TABLE {$t['entitlements']} (
+  id bigint(20) unsigned NOT NULL AUTO_INCREMENT,
+  org_id bigint(20) unsigned NOT NULL,
+  user_id bigint(20) unsigned NOT NULL,
+  platform varchar(32) NOT NULL,
+  status varchar(16) NOT NULL DEFAULT 'active',
+  granted_via varchar(16) NOT NULL DEFAULT 'purchase',
+  payment_id bigint(20) unsigned NULL,
+  granted_by bigint(20) unsigned NULL,
+  granted_at datetime NOT NULL,
+  revoked_at datetime NULL,
+  PRIMARY KEY  (id),
+  UNIQUE KEY org_platform (org_id,platform),
+  KEY user_id (user_id)
+) $charset;"
+		);
+
+		dbDelta(
+			"CREATE TABLE {$t['webhook_events']} (
+  id bigint(20) unsigned NOT NULL AUTO_INCREMENT,
+  provider varchar(16) NOT NULL,
+  event_id varchar(191) NOT NULL,
+  type varchar(64) NOT NULL,
+  payload longtext NULL,
+  created_at datetime NOT NULL,
+  PRIMARY KEY  (id),
+  UNIQUE KEY provider_event (provider,event_id)
 ) $charset;"
 		);
 	}

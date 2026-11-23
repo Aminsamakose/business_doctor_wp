@@ -32,7 +32,7 @@
 		return fetch( CFG.api + path, opts ).then( function ( res ) {
 			return res.json().catch( function () { return null; } ).then( function ( j ) {
 				if ( ! res.ok ) {
-					return { ok: false, status: res.status, message: ( j && j.message ) || T.generic, fields: ( j && j.data && j.data.fields ) || {} };
+					return { ok: false, status: res.status, message: ( j && j.message ) || T.generic, fields: ( j && j.data && j.data.fields ) || {}, data: ( j && j.data ) || {} };
 				}
 				return { ok: true, data: j };
 			} );
@@ -58,7 +58,67 @@
 		this.root.innerHTML = '';
 		if ( ! this.loggedIn ) { return this.auth(); }
 		if ( ! this.platform ) { return this.choosePlatform(); }
+		var ref = this.paymentReferenceFromUrl();
+		if ( ref ) { return this.verifyPayment( ref ); }
 		this.loadOrg();
+	};
+
+	/* --- Payment return handling --- */
+
+	App.prototype.paymentReferenceFromUrl = function () {
+		var m = window.location.search.match( /[?&]bd_payment_ref=([^&]+)/ );
+		return m ? decodeURIComponent( m[ 1 ] ) : null;
+	};
+
+	App.prototype.clearPaymentReferenceFromUrl = function () {
+		if ( ! window.history || ! window.history.replaceState ) { return; }
+		var url = window.location.href.replace( /([?&])bd_payment_ref=[^&]+&?/, '$1' ).replace( /[?&]$/, '' );
+		window.history.replaceState( null, '', url );
+	};
+
+	App.prototype.verifyPayment = function ( reference ) {
+		var self = this;
+		this.root.innerHTML = '';
+		this.root.appendChild( el( 'div', { class: 'bd-card' }, [ el( 'p', { text: T.verifyingPayment } ) ] ) );
+		request( 'GET', '/owner/payments/' + encodeURIComponent( reference ) ).then( function ( res ) {
+			self.clearPaymentReferenceFromUrl();
+			self.root.innerHTML = '';
+			var card;
+			if ( res.ok && 'success' === res.data.status ) {
+				card = el( 'div', { class: 'bd-card' }, [
+					alertBox( T.paymentSuccess ),
+					res.data.invoiceNumber ? el( 'p', { text: T.invoice + ': ' + res.data.invoiceNumber } ) : null,
+				] );
+			} else if ( res.ok && 'pending' === res.data.status ) {
+				card = el( 'div', { class: 'bd-card' }, [ alertBox( T.paymentPending ) ] );
+			} else {
+				card = el( 'div', { class: 'bd-card' }, [ alertBox( T.paymentFailed ) ] );
+			}
+			self.root.appendChild( card );
+			self.loadOrg();
+		} );
+	};
+
+	App.prototype.payPanel = function ( amountGhs ) {
+		var self = this;
+		var btn = el( 'button', { class: 'bd-btn bd-btn-primary', type: 'button', text: T.payNow + ( amountGhs ? ' (GHS ' + amountGhs + ')' : '' ), onclick: function () {
+			btn.disabled = true;
+			btn.textContent = T.redirecting;
+			request( 'POST', '/owner/payments/' + self.platform + '/checkout', { returnUrl: window.location.href } ).then( function ( res ) {
+				if ( ! res.ok ) {
+					btn.disabled = false;
+					btn.textContent = T.payNow;
+					self.root.appendChild( alertBox( res.message ) );
+					return;
+				}
+				window.location.href = res.data.authorizationUrl;
+			} );
+		} } );
+		return el( 'div', { class: 'bd-card bd-pay-panel' }, [
+			el( 'h2', { text: T.unlockTitle } ),
+			el( 'p', { text: T.unlockBody } ),
+			btn,
+		] );
 	};
 
 	/* --- Sign in / register --- */
@@ -171,7 +231,16 @@
 	App.prototype.startAssessment = function () {
 		var self = this;
 		request( 'POST', '/owner/diagnostics/' + this.platform + '/start' ).then( function ( res ) {
-			if ( ! res.ok ) { self.root.appendChild( alertBox( res.message ) ); return; }
+			if ( ! res.ok ) {
+				if ( 402 === res.status ) {
+					self.root.innerHTML = '';
+					self.root.appendChild( self.payPanel( res.data && res.data.amountGhs ) );
+					return;
+				}
+				if ( 503 === res.status ) { self.root.appendChild( alertBox( T.notConfigured ) ); return; }
+				self.root.appendChild( alertBox( res.message ) );
+				return;
+			}
 			self.diagnostic = res.data;
 			if ( 'submitted' === self.diagnostic.status ) { return self.showResult(); }
 			self.assessmentForm();

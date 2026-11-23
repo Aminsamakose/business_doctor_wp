@@ -32,6 +32,14 @@ class BD_Settings {
 			'trust_proxy'        => 0,
 			'rate_limit'         => 10,
 			'delete_on_uninstall' => 0,
+			'payments_enabled'    => 0,
+			'paystack_secret_key' => '',
+			'invoice_prefix'      => 'INV',
+			'platform_prices_ghs' => array(
+				'SME360'      => 500,
+				'AGRIFOOD360' => 500,
+				'ESO360'      => 500,
+			),
 		);
 	}
 
@@ -111,6 +119,25 @@ class BD_Settings {
 		$out['trust_proxy']         = empty( $in['trust_proxy'] ) ? 0 : 1;
 		$out['rate_limit']          = isset( $in['rate_limit'] ) ? max( 1, min( 100, (int) $in['rate_limit'] ) ) : $d['rate_limit'];
 		$out['delete_on_uninstall'] = empty( $in['delete_on_uninstall'] ) ? 0 : 1;
+
+		$out['payments_enabled'] = empty( $in['payments_enabled'] ) ? 0 : 1;
+		// A blank submission keeps the key that is already saved, so clearing the field in the form
+		// never has to mean "delete the live key" -- staff explicitly uncheck "Payments enabled" to
+		// turn payments off instead.
+		$out['paystack_secret_key'] = isset( $in['paystack_secret_key'] ) && '' !== trim( (string) $in['paystack_secret_key'] )
+			? sanitize_text_field( trim( (string) $in['paystack_secret_key'] ) )
+			: $old['paystack_secret_key'];
+		$prefix                 = isset( $in['invoice_prefix'] ) ? strtoupper( preg_replace( '/[^A-Za-z]/', '', (string) $in['invoice_prefix'] ) ) : '';
+		$out['invoice_prefix']  = $prefix && strlen( $prefix ) <= 8 ? $prefix : $d['invoice_prefix'];
+
+		$prices        = isset( $in['platform_prices_ghs'] ) && is_array( $in['platform_prices_ghs'] ) ? $in['platform_prices_ghs'] : array();
+		$out_prices    = array();
+		foreach ( array_keys( BD_Frameworks::platforms() ) as $code ) {
+			$v                 = isset( $prices[ $code ] ) ? (float) $prices[ $code ] : (float) ( $old['platform_prices_ghs'][ $code ] ?? $d['platform_prices_ghs'][ $code ] ?? 0 );
+			$out_prices[ $code ] = max( 0, round( $v, 2 ) );
+		}
+		$out['platform_prices_ghs'] = $out_prices;
+
 		return $out;
 	}
 }

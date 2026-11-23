@@ -16,6 +16,7 @@ class BD_Mailer {
 	public static function init() {
 		add_action( 'bd_result_completed', array( __CLASS__, 'notify_staff' ) );
 		add_action( 'bd_diagnostic_submitted', array( __CLASS__, 'notify_staff_diagnostic' ) );
+		add_action( 'bd_payment_settled', array( __CLASS__, 'notify_staff_payment' ) );
 	}
 
 	/**
@@ -147,6 +148,36 @@ class BD_Mailer {
 			sprintf( __( 'Platform: %s', 'business-doctor' ), BD_Frameworks::short_name( $d['platform'] ) ),
 			/* translators: 1: score, 2: maturity band, 3: confidence. */
 			sprintf( __( 'Score: %1$s/100 (%2$s), confidence %3$s', 'business-doctor' ), $d['overall_score'], $d['maturity'], $d['confidence'] ),
+			'',
+			$link,
+		);
+		wp_mail( $s['notify_email'], $subject, implode( "\n", $lines ) );
+	}
+
+	/**
+	 * Tells staff that a payment settled and an organisation's full assessment is now unlocked.
+	 *
+	 * @param array $payment Settled payment row, merged with its final status and invoice number.
+	 */
+	public static function notify_staff_payment( array $payment ) {
+		$s = BD_Settings::all();
+		if ( empty( $s['notify_on_complete'] ) || ! is_email( $s['notify_email'] ) ) {
+			return;
+		}
+		$org  = BD_Organisations::get( (int) $payment['org_id'] );
+		$user = get_userdata( (int) $payment['user_id'] );
+		$link = admin_url( 'admin.php?page=bd-payments' );
+		/* translators: 1: platform name, 2: amount in GHS. */
+		$subject = sprintf( __( 'Payment received: %1$s, GHS %2$s', 'business-doctor' ), BD_Frameworks::short_name( $payment['platform'] ), $payment['amount_ghs'] );
+		$lines   = array(
+			/* translators: %s: organisation name. */
+			sprintf( __( 'Organisation: %s', 'business-doctor' ), $org ? $org['name'] : __( '(no organisation name)', 'business-doctor' ) ),
+			/* translators: %s: owner name and email. */
+			sprintf( __( 'Owner: %s', 'business-doctor' ), $user ? $user->display_name . ' (' . $user->user_email . ')' : '' ),
+			/* translators: %s: platform. */
+			sprintf( __( 'Platform: %s', 'business-doctor' ), BD_Frameworks::short_name( $payment['platform'] ) ),
+			/* translators: 1: amount, 2: invoice number. */
+			sprintf( __( 'Amount: GHS %1$s (invoice %2$s)', 'business-doctor' ), $payment['amount_ghs'], $payment['invoice_number'] ),
 			'',
 			$link,
 		);

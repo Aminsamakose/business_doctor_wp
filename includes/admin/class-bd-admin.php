@@ -401,6 +401,23 @@ class BD_Admin {
 					<tr><th><label for="bd-byline"><?php esc_html_e( 'Byline', 'business-doctor' ); ?></label></th><td><input type="text" id="bd-byline" class="regular-text" name="<?php echo esc_attr( $o ); ?>[brand_byline]" value="<?php echo esc_attr( $s['brand_byline'] ); ?>"></td></tr>
 					<tr><th><label for="bd-site"><?php esc_html_e( 'Footer website', 'business-doctor' ); ?></label></th><td><input type="text" id="bd-site" class="regular-text" name="<?php echo esc_attr( $o ); ?>[site_label]" value="<?php echo esc_attr( $s['site_label'] ); ?>"></td></tr>
 				</table>
+				<h2><?php esc_html_e( 'Payments', 'business-doctor' ); ?></h2>
+				<table class="form-table" role="presentation">
+					<tr><th><?php esc_html_e( 'Full assessment payments', 'business-doctor' ); ?></th><td><label><input type="checkbox" name="<?php echo esc_attr( $o ); ?>[payments_enabled]" value="1" <?php checked( $s['payments_enabled'] ); ?>> <?php esc_html_e( 'Require payment before a business owner can start the full assessment', 'business-doctor' ); ?></label><p class="description"><?php esc_html_e( 'Off by default, so existing full-assessment access is unaffected until you turn this on and set a Paystack key below.', 'business-doctor' ); ?></p></td></tr>
+					<tr><th><label for="bd-paystack-key"><?php esc_html_e( 'Paystack secret key', 'business-doctor' ); ?></label></th><td>
+						<input type="password" id="bd-paystack-key" class="regular-text" autocomplete="off" name="<?php echo esc_attr( $o ); ?>[paystack_secret_key]" value="" placeholder="<?php echo esc_attr( $s['paystack_secret_key'] ? __( 'A key is saved. Leave blank to keep it.', 'business-doctor' ) : 'sk_test_...' ); ?>">
+						<p class="description"><?php esc_html_e( 'From your Paystack dashboard under Settings > API keys and webhooks. A key starting sk_test_ moves no real money; switch to the sk_live_ key once you are ready to accept real payments.', 'business-doctor' ); ?></p>
+					</td></tr>
+					<tr><th><label for="bd-invoice-prefix"><?php esc_html_e( 'Invoice prefix', 'business-doctor' ); ?></label></th><td><input type="text" id="bd-invoice-prefix" class="small-text" maxlength="8" name="<?php echo esc_attr( $o ); ?>[invoice_prefix]" value="<?php echo esc_attr( $s['invoice_prefix'] ); ?>"></td></tr>
+					<tr><th><?php esc_html_e( 'Prices (GHS)', 'business-doctor' ); ?></th><td>
+						<?php foreach ( BD_Frameworks::platforms() as $code => $p ) : ?>
+							<p><label for="bd-price-<?php echo esc_attr( $code ); ?>"><?php echo esc_html( $p['label'] ); ?></label> GHS <input type="number" id="bd-price-<?php echo esc_attr( $code ); ?>" min="0" step="0.01" class="small-text" name="<?php echo esc_attr( $o ); ?>[platform_prices_ghs][<?php echo esc_attr( $code ); ?>]" value="<?php echo esc_attr( $s['platform_prices_ghs'][ $code ] ?? 0 ); ?>"></p>
+						<?php endforeach; ?>
+						<p class="description"><?php esc_html_e( 'A price of 0 means that platform\'s full assessment is not for sale (owners cannot start it while payments are on, unless they already hold access).', 'business-doctor' ); ?></p>
+					</td></tr>
+					<?php $readiness = BD_Paystack::is_configured() ? ( BD_Paystack::is_live_key() ? __( 'Live key saved.', 'business-doctor' ) : __( 'Test key saved -- no real money moves yet.', 'business-doctor' ) ) : __( 'No key saved yet.', 'business-doctor' ); ?>
+					<tr><th><?php esc_html_e( 'Webhook address', 'business-doctor' ); ?></th><td><code><?php echo esc_html( rest_url( 'business-doctor/v1/webhooks/paystack' ) ); ?></code><p class="description"><?php echo esc_html( $readiness ); ?> <?php esc_html_e( 'Add this address in the Paystack dashboard under Settings > API keys and webhooks, so a payment still settles even if the owner closes the browser tab before returning.', 'business-doctor' ); ?></p></td></tr>
+				</table>
 				<h2><?php esc_html_e( 'Security and data', 'business-doctor' ); ?></h2>
 				<table class="form-table" role="presentation">
 					<tr><th><label for="bd-rate"><?php esc_html_e( 'Submissions per visitor', 'business-doctor' ); ?></label></th><td><input type="number" id="bd-rate" min="1" max="100" class="small-text" name="<?php echo esc_attr( $o ); ?>[rate_limit]" value="<?php echo esc_attr( $s['rate_limit'] ); ?>"> <?php esc_html_e( 'per 15 minutes', 'business-doctor' ); ?></td></tr>
