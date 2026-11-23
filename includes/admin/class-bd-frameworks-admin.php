@@ -176,9 +176,10 @@ class BD_Frameworks_Admin {
 		self::notice();
 		echo '<p class="description">' . esc_html__( 'Each platform has one live (published) version. To change questions, create a draft, edit it, then publish. Earlier results keep the version they were taken under.', 'business-doctor' ) . '</p>';
 		$counts = self::result_counts();
-		echo '<table class="widefat striped"><thead><tr><th>' . esc_html__( 'Platform', 'business-doctor' ) . '</th><th>' . esc_html__( 'Version', 'business-doctor' ) . '</th><th>' . esc_html__( 'Status', 'business-doctor' ) . '</th><th>' . esc_html__( 'Questions', 'business-doctor' ) . '</th><th>' . esc_html__( 'Results', 'business-doctor' ) . '</th><th>' . esc_html__( 'Actions', 'business-doctor' ) . '</th></tr></thead><tbody>';
-		foreach ( BD_Frameworks::all_versions( 'free' ) as $f ) {
+		echo '<table class="widefat striped"><thead><tr><th>' . esc_html__( 'Platform', 'business-doctor' ) . '</th><th>' . esc_html__( 'Type', 'business-doctor' ) . '</th><th>' . esc_html__( 'Version', 'business-doctor' ) . '</th><th>' . esc_html__( 'Status', 'business-doctor' ) . '</th><th>' . esc_html__( 'Questions', 'business-doctor' ) . '</th><th>' . esc_html__( 'Results', 'business-doctor' ) . '</th><th>' . esc_html__( 'Actions', 'business-doctor' ) . '</th></tr></thead><tbody>';
+		foreach ( BD_Frameworks::all_versions() as $f ) {
 			echo '<tr><td><strong>' . esc_html( BD_Frameworks::short_name( $f['platform'] ) ) . '</strong><br><span class="description">' . esc_html( $f['name'] ) . '</span></td>';
+			echo '<td>' . ( 'full' === $f['purpose'] ? esc_html__( 'Full assessment', 'business-doctor' ) : esc_html__( 'Free assessment', 'business-doctor' ) ) . '</td>';
 			echo '<td>' . esc_html( $f['version'] ) . '</td>';
 			echo '<td><span class="bd-status bd-fw-' . esc_attr( $f['status'] ) . '">' . esc_html( ucfirst( $f['status'] ) ) . '</span></td>';
 			echo '<td>' . esc_html( count( $f['questions'] ) ) . ' / ' . esc_html( count( $f['dimensions'] ) ) . ' ' . esc_html__( 'dimensions', 'business-doctor' ) . '</td>';
@@ -188,7 +189,7 @@ class BD_Frameworks_Admin {
 			} else {
 				echo '<a class="button" href="' . esc_url( admin_url( 'admin.php?page=bd-frameworks&view=' . $f['id'] ) ) . '">' . esc_html__( 'View', 'business-doctor' ) . '</a> ';
 			}
-			if ( 'published' === $f['status'] ) {
+			if ( 'published' === $f['status'] && 'free' === $f['purpose'] ) {
 				self::button( 'bd_fw_draft', $f['id'], __( 'Create draft from this', 'business-doctor' ) );
 			}
 			echo '</td></tr>';
@@ -231,6 +232,24 @@ class BD_Frameworks_Admin {
 		echo '<h1>' . esc_html( sprintf( __( '%1$s, version %2$d (%3$s)', 'business-doctor' ), BD_Frameworks::short_name( $f['platform'] ), $f['version'], $f['status'] ) ) . '</h1>';
 		echo '<p><a href="' . esc_url( admin_url( 'admin.php?page=bd-frameworks' ) ) . '">&larr; ' . esc_html__( 'All question banks', 'business-doctor' ) . '</a></p>';
 		self::notice();
+		if ( 'full' === $f['purpose'] ) {
+			echo '<p class="description">' . esc_html__( 'This is the full, evidence-weighted assessment business owners take, imported from the approved Samakose AI question bank. It is read-only here for now: editing the full assessment banks from wp-admin is not yet built, so a correction currently needs a direct change to the source data and a re-import.', 'business-doctor' ) . '</p>';
+			echo '<table class="widefat striped"><thead><tr><th>' . esc_html__( 'Code', 'business-doctor' ) . '</th><th>' . esc_html__( 'Dimension', 'business-doctor' ) . '</th><th>' . esc_html__( 'Weight', 'business-doctor' ) . '</th><th>' . esc_html__( 'Criticality', 'business-doctor' ) . '</th><th>' . esc_html__( 'Question and rating anchors (0-4)', 'business-doctor' ) . '</th></tr></thead><tbody>';
+			foreach ( $f['questions'] as $q ) {
+				echo '<tr><td><code>' . esc_html( $q['code'] ) . '</code></td><td>' . esc_html( $q['dimension'] ) . '</td><td>' . esc_html( isset( $q['weight'] ) ? $q['weight'] : '' ) . '</td><td>' . esc_html( isset( $q['criticality'] ) ? $q['criticality'] : '' ) . '</td><td><strong>' . esc_html( $q['text'] ) . '</strong><ol start="0">';
+				foreach ( (array) ( $q['anchors'] ?? array() ) as $a ) {
+					echo '<li>' . esc_html( $a ) . '</li>';
+				}
+				echo '</ol>';
+				if ( ! empty( $q['evidence']['requirement'] ) ) {
+					echo '<p class="description">' . esc_html__( 'Evidence required:', 'business-doctor' ) . ' ' . esc_html( $q['evidence']['requirement'] ) . '</p>';
+				}
+				echo '</td></tr>';
+			}
+			echo '</tbody></table>';
+			return;
+		}
+
 		if ( ! $draft ) {
 			echo '<p class="description">' . esc_html__( 'This version is read-only. Create a draft from the live version to make changes.', 'business-doctor' ) . '</p>';
 			echo '<table class="widefat striped"><thead><tr><th>' . esc_html__( 'Code', 'business-doctor' ) . '</th><th>' . esc_html__( 'Dimension', 'business-doctor' ) . '</th><th>' . esc_html__( 'Question and answers (A=4, B=3, C=2, D=1)', 'business-doctor' ) . '</th></tr></thead><tbody>';

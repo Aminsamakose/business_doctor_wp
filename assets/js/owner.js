@@ -209,6 +209,22 @@
 			} );
 			var note = el( 'textarea', { rows: '2' } );
 			note.value = saved.evidenceNote || '';
+			var attachmentId = saved.attachmentId || null;
+			var fileInput = el( 'input', { type: 'file', accept: '.pdf,.doc,.docx,.jpg,.jpeg,.png,.webp' } );
+			var fileStatus = el( 'span', { class: 'bd-file-status', text: attachmentId ? T.fileAttached : '' } );
+			fileInput.addEventListener( 'change', function () {
+				if ( ! fileInput.files || ! fileInput.files[ 0 ] ) { return; }
+				fileStatus.textContent = T.uploading;
+				var fd = new FormData();
+				fd.append( 'file', fileInput.files[ 0 ] );
+				fetch( CFG.api + '/owner/diagnostics/' + d.id + '/evidence', {
+					method: 'POST', headers: { 'X-WP-Nonce': CFG.nonce || '' }, credentials: 'same-origin', body: fd,
+				} ).then( function ( res ) { return res.json().then( function ( j ) { return { ok: res.ok, data: j }; } ); } ).then( function ( res ) {
+					if ( ! res.ok ) { fileStatus.textContent = ( res.data && res.data.message ) || T.generic; return; }
+					attachmentId = res.data.attachmentId;
+					fileStatus.textContent = T.fileAttached;
+				}, function () { fileStatus.textContent = T.network; } );
+			} );
 			var status = el( 'span', { class: 'bd-save-status' } );
 			var saveBtn = el( 'button', { class: 'bd-btn', type: 'button', text: T.saveAnswer, onclick: function () {
 				var value = null;
@@ -218,6 +234,7 @@
 					notApplicable: !! ( naBox && naBox.checked ),
 					evidenceClass: evSelect.value,
 					evidenceNote: note.value,
+					attachmentId: attachmentId,
 				};
 				status.textContent = '…';
 				request( 'PUT', '/owner/diagnostics/' + d.id + '/answers', Object.assign( { questionCode: q.code }, body ) ).then( function ( res ) {
@@ -226,7 +243,7 @@
 			} } );
 			var children = [ el( 'h3', { text: q.text } ), anchorGroup ];
 			if ( naBox ) { children.push( el( 'label', { class: 'bd-na' }, [ naBox, el( 'span', { text: T.notApplicable } ) ] ) ); }
-			children.push( field( T.evidence, evSelect ), field( T.evidenceNote, note ), el( 'div', {}, [ saveBtn, status ] ) );
+			children.push( field( T.evidence, evSelect ), field( T.evidenceNote, note ), field( T.evidenceFile, fileInput ), fileStatus, el( 'div', {}, [ saveBtn, status ] ) );
 			rows[ q.code ] = el( 'div', { class: 'bd-question', 'data-code': q.code }, children );
 			list.appendChild( rows[ q.code ] );
 		} );

@@ -95,17 +95,16 @@ This runs scoring parity (912 cases from the original TypeScript), band boundari
 | Phase | Scope | Notes |
 |---|---|---|
 | **1** | Free assessments, scoring, results, leads, question banks, reports, settings | Complete |
-| **2 (this release)** | Accounts for business owners (WordPress users with a Business Owner role), organisation profiles, the full paid assessments (SME360 v2, AgriFood360 v1 and ESO360 v1, 100 evidence-weighted questions each), evidence classes on every answer | Question banks pulled from the published Samakose AI database and the evidence-weighted scorer ported from `samakose-ai`; parity-tested at 12596/12596 checks. Evidence file uploads and a dedicated staff editor for the full question banks are not yet built (see Known limitations) |
+| **2 (this release)** | Accounts for business owners (WordPress users with a Business Owner role), organisation profiles, the full paid assessments (SME360 v2, AgriFood360 v1 and ESO360 v1, 100 evidence-weighted questions each) with an evidence class, note and supporting file on every answer | Question banks pulled from the published Samakose AI database and the evidence-weighted scorer ported from `samakose-ai`; parity-tested at 12596/12596 checks and end-to-end tested on a real WordPress 6.8 + MariaDB 10.11 install |
 | 3 | Payments with Paystack (Ghana cedis), plans and entitlements, invoices | Webhook and verify-on-return from day one |
 | 4 | AI diagnosis and prescription drafts with expert review and approval, action plans, KPIs and re-assessment | Reuses the Claude prompts and the four-eyes approval rules |
 | 5 | Programmes for donors and cohorts, expert network, reporting dashboards | Highest effort; decide scope after phases 2 to 4 are in use |
 
 ## Known limitations (Phase 2)
 
-- Evidence is recorded as an evidence class and a text note per answer; attaching a supporting document to an answer is not yet built.
-- The "Question Banks" admin screen still only lists and edits the free assessment's banks. The three full-assessment banks (100 questions each, pulled from the published Samakose AI database) are seeded as published and not yet editable from wp-admin.
-- Phase 2 has been verified with standalone PHP tests (scoring parity, question-bank integrity) but not yet end to end on a real WordPress and MariaDB install, unlike Phase 1.
+- The "Question Banks" admin screen can now view the full-assessment banks (dimension, weight, criticality, rating anchors, evidence requirement), but still cannot edit them: they are read-only there until a dedicated editor for the richer question shape is built. A correction today needs a change to the source data and a re-import.
 - Routing a new lead to a specific staff member (as in Samakose AI's admin) is not ported; Phase 1's single notification-email setting covers both phases for now.
+- No payments, plans or entitlements yet (Phase 3): a business owner can currently register and take the full assessment without being charged.
 
 ## Licence
 

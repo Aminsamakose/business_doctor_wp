@@ -118,7 +118,7 @@ class BD_Diagnostics_Admin {
 			<div class="bd-panel">
 				<h2><?php esc_html_e( 'Answers and evidence', 'business-doctor' ); ?></h2>
 				<table class="widefat striped">
-					<thead><tr><th><?php esc_html_e( 'Question', 'business-doctor' ); ?></th><th><?php esc_html_e( 'Rating', 'business-doctor' ); ?></th><th><?php esc_html_e( 'Evidence', 'business-doctor' ); ?></th><th><?php esc_html_e( 'Note', 'business-doctor' ); ?></th></tr></thead>
+					<thead><tr><th><?php esc_html_e( 'Question', 'business-doctor' ); ?></th><th><?php esc_html_e( 'Rating', 'business-doctor' ); ?></th><th><?php esc_html_e( 'Evidence', 'business-doctor' ); ?></th><th><?php esc_html_e( 'Note', 'business-doctor' ); ?></th><th><?php esc_html_e( 'File', 'business-doctor' ); ?></th></tr></thead>
 					<tbody>
 					<?php foreach ( ( $fw ? $fw['questions'] : array() ) as $q ) : ?>
 						<?php $a = isset( $answers[ $q['code'] ] ) ? $answers[ $q['code'] ] : null; ?>
@@ -127,6 +127,7 @@ class BD_Diagnostics_Admin {
 							<td><?php echo $a && ! $a['notApplicable'] ? esc_html( $a['value'] ) : ( $a && $a['notApplicable'] ? esc_html__( 'N/A', 'business-doctor' ) : '&ndash;' ); ?></td>
 							<td><?php echo $a ? esc_html( $a['evidenceClass'] ) : '&ndash;'; ?></td>
 							<td><?php echo $a ? esc_html( $a['evidenceNote'] ) : ''; ?></td>
+							<td><?php if ( $a && $a['attachmentId'] && get_post( $a['attachmentId'] ) ) : ?><a href="<?php echo esc_url( wp_get_attachment_url( $a['attachmentId'] ) ); ?>" target="_blank" rel="noopener"><?php esc_html_e( 'View file', 'business-doctor' ); ?></a><?php else : ?>&ndash;<?php endif; ?></td>
 						</tr>
 					<?php endforeach; ?>
 					</tbody>

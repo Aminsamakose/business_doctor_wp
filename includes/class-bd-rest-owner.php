@@ -105,6 +105,15 @@ class BD_Rest_Owner {
 		);
 		register_rest_route(
 			self::NS,
+			'/owner/diagnostics/(?P<id>\d+)/evidence',
+			array(
+				'methods'             => 'POST',
+				'callback'            => array( __CLASS__, 'upload_evidence' ),
+				'permission_callback' => array( __CLASS__, 'permission' ),
+			)
+		);
+		register_rest_route(
+			self::NS,
 			'/owner/diagnostics/(?P<id>\d+)/submit',
 			array(
 				'methods'             => 'POST',
@@ -314,8 +323,78 @@ class BD_Rest_Owner {
 		if ( ! $question ) {
 			return new WP_Error( 'bd_invalid', __( 'Unknown question.', 'business-doctor' ), array( 'status' => 422 ) );
 		}
-		$result = BD_Diagnostics::save_answer( $d, $question, (array) $req->get_json_params() );
+		$body = (array) $req->get_json_params();
+		if ( ! empty( $body['attachmentId'] ) ) {
+			// An evidence attachment must have been uploaded for this exact diagnostic: never let one
+			// assessment's evidence be claimed by referencing another owner's attachment id.
+			if ( (int) get_post_meta( (int) $body['attachmentId'], '_bd_diagnostic_id', true ) !== (int) $d['id'] ) {
+				return new WP_Error( 'bd_invalid', __( 'That attachment does not belong to this assessment.', 'business-doctor' ), array( 'status' => 422 ) );
+			}
+		}
+		$result = BD_Diagnostics::save_answer( $d, $question, $body );
 		return is_wp_error( $result ) ? $result : rest_ensure_response( array( 'ok' => true ) );
+	}
+
+	/**
+	 * Mime types accepted as evidence attachments.
+	 *
+	 * @return string[]
+	 */
+	private static function allowed_evidence_types() {
+		return array( 'application/pdf', 'image/jpeg', 'image/png', 'image/webp', 'application/msword', 'application/vnd.openxmlformats-officedocument.wordprocessingml.document' );
+	}
+
+	/**
+	 * POST /owner/diagnostics/{id}/evidence  multipart upload, field name "file". Returns an
+	 * attachment id to pass as attachmentId when saving the answer it supports.
+	 *
+	 * @param WP_REST_Request $req Request.
+	 * @return WP_REST_Response|WP_Error
+	 */
+	public static function upload_evidence( WP_REST_Request $req ) {
+		$d = self::owned_diagnostic( $req['id'] );
+		if ( is_wp_error( $d ) ) {
+			return $d;
+		}
+		if ( 'draft' !== $d['status'] ) {
+			return new WP_Error( 'bd_submitted', __( 'This assessment has already been submitted and can no longer be changed.', 'business-doctor' ), array( 'status' => 409 ) );
+		}
+		if ( ! BD_Rate_Limit::hit( 'owner_evidence', 60, HOUR_IN_SECONDS ) ) {
+			return new WP_Error( 'bd_rate_limited', __( 'Too many uploads. Please wait a few minutes and try again.', 'business-doctor' ), array( 'status' => 429 ) );
+		}
+		$files = $req->get_file_params();
+		if ( empty( $files['file']['tmp_name'] ) ) {
+			return new WP_Error( 'bd_invalid', __( 'Choose a file to upload.', 'business-doctor' ), array( 'status' => 422 ) );
+		}
+		$file = $files['file'];
+		if ( ! empty( $file['size'] ) && $file['size'] > 10 * MB_IN_BYTES ) {
+			return new WP_Error( 'bd_invalid', __( 'Files must be 10MB or smaller.', 'business-doctor' ), array( 'status' => 422 ) );
+		}
+		$type = wp_check_filetype( $file['name'] );
+		if ( empty( $type['type'] ) || ! in_array( $type['type'], self::allowed_evidence_types(), true ) ) {
+			return new WP_Error( 'bd_invalid', __( 'Please upload a PDF, Word document, or image (JPG, PNG or WEBP).', 'business-doctor' ), array( 'status' => 422 ) );
+		}
+		require_once ABSPATH . 'wp-admin/includes/file.php';
+		require_once ABSPATH . 'wp-admin/includes/media.php';
+		require_once ABSPATH . 'wp-admin/includes/image.php';
+		// Evidence files are owner-supplied and private to their own assessment; never attached to
+		// a public post, so they do not appear in the media library's post-attachment listings.
+		// test_form is off because this upload comes through the REST API, not a classic wp-admin
+		// post form with an expected "action" field; wp_handle_upload() would otherwise reject it
+		// as an invalid form submission.
+		$attachment_id = media_handle_upload( 'file', 0, array(), array( 'test_form' => false ) );
+		if ( is_wp_error( $attachment_id ) ) {
+			return new WP_Error( 'bd_upload', __( 'The file could not be uploaded. Please try again.', 'business-doctor' ), array( 'status' => 500 ) );
+		}
+		update_post_meta( $attachment_id, '_bd_diagnostic_id', $d['id'] );
+		update_post_meta( $attachment_id, '_bd_uploaded_by', get_current_user_id() );
+		return rest_ensure_response(
+			array(
+				'attachmentId' => (int) $attachment_id,
+				'url'          => wp_get_attachment_url( $attachment_id ),
+				'fileName'     => get_the_title( $attachment_id ),
+			)
+		);
 	}
 
 	/**
