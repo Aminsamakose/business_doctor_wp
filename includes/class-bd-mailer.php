@@ -48,16 +48,48 @@ class BD_Mailer {
 			. '<p style="font-size:36px;font-weight:700;margin:8px 0;">' . esc_html( $r['overall_score'] ) . '<span style="font-size:16px;color:#777;font-weight:400;">/100</span> <span style="font-size:16px;">' . esc_html( $r['classification'] ) . '</span></p>'
 			. '<table role="presentation" style="border-collapse:collapse;">' . $rows . '</table>'
 			. '<p><strong>' . esc_html__( 'Strengths:', 'business-doctor' ) . '</strong> ' . esc_html( implode( ', ', $findings['strengths'] ) ) . '<br><strong>' . esc_html__( 'Priority areas:', 'business-doctor' ) . '</strong> ' . esc_html( implode( ', ', $findings['priorities'] ) ) . '</p>'
-			. '<p><a href="' . esc_url( BD_Report::url( $r['token'] ) ) . '">' . esc_html__( 'View, print or save your full report', 'business-doctor' ) . '</a> (' . esc_html( BD_Results::reference( $r ) ) . ')</p>'
+			. '<p>' . esc_html__( 'A PDF copy of this report is attached.', 'business-doctor' ) . ' <a href="' . esc_url( BD_Report::url( $r['token'] ) ) . '">' . esc_html__( 'Or view it online', 'business-doctor' ) . '</a> (' . esc_html( BD_Results::reference( $r ) ) . ')</p>'
 			. $cta
 			. '<p style="font-size:12px;color:#777;">' . esc_html( BD_Report::disclaimer() ) . '</p>'
 			. '<p style="font-size:12px;color:#777;">' . esc_html( $s['brand_name'] . ' ' . $s['brand_byline'] . ' | ' . $s['site_label'] ) . '</p></div>';
 
-		$sent = wp_mail( $r['email'], $subject, $body, array( 'Content-Type: text/html; charset=UTF-8' ) );
+		$attachment = self::attach_pdf( $r );
+		$sent       = wp_mail( $r['email'], $subject, $body, array( 'Content-Type: text/html; charset=UTF-8' ), $attachment ? array( $attachment ) : array() );
+		if ( $attachment ) {
+			wp_delete_file( $attachment );
+		}
 		if ( $sent ) {
 			BD_Results::mark_emailed( $r['id'] );
 		}
 		return $sent;
+	}
+
+	/**
+	 * Writes the result's PDF to a temporary file for wp_mail's attachments parameter, which
+	 * takes file paths rather than in-memory content. Deleted by the caller once the mail is sent.
+	 *
+	 * @param array $r Result.
+	 * @return string|null Temp file path, or null if it could not be written.
+	 */
+	private static function attach_pdf( array $r ) {
+		try {
+			$pdf = BD_Pdf::build( $r );
+		} catch ( \Throwable $e ) { // phpcs:ignore Generic.Files.LineLength
+			return null;
+		}
+		$path = wp_tempnam( 'bd-result-' . $r['token'] . '.pdf' );
+		if ( ! $path || false === file_put_contents( $path, $pdf ) ) { // phpcs:ignore WordPress.WP.AlternativeFunctions.file_system_operations_file_put_contents
+			return null;
+		}
+		// wp_tempnam() always returns a path ending in .tmp regardless of the name hint, and PHPMailer
+		// needs a .pdf extension to attach it with a sensible filename and MIME type. Strip whatever
+		// extension is there (there is always exactly one, from wp_tempnam's own suffix) and add .pdf,
+		// rather than a trailing regex replace, which can match twice and double the extension.
+		$renamed = preg_replace( '/\.[^.\/\\\\]*$/', '', $path ) . '.pdf';
+		if ( $renamed !== $path && @rename( $path, $renamed ) ) { // phpcs:ignore WordPress.PHP.NoSilencedErrors
+			return $renamed;
+		}
+		return $path;
 	}
 
 	/**

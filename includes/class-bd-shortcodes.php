@@ -70,6 +70,7 @@ class BD_Shortcodes {
 				'emailMe'       => __( 'Email me this result', 'business-doctor' ),
 				'sending'       => __( 'Sending...', 'business-doctor' ),
 				'emailed'       => __( 'Emailed', 'business-doctor' ),
+				'download'      => __( 'Download PDF', 'business-doctor' ),
 				'report'        => __( 'Open printable report', 'business-doctor' ),
 				'keepCopy'      => __( 'Print or save your report before closing this page.', 'business-doctor' ),
 				'explore'       => __( 'Explore the full Business Health Assessment', 'business-doctor' ),

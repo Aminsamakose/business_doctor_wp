@@ -84,6 +84,7 @@ class BD_Report {
 <body>
 <div class="bd-toolbar">
 	<button type="button" onclick="window.print()"><?php esc_html_e( 'Print or save as PDF', 'business-doctor' ); ?></button>
+	<a href="<?php echo esc_url( rest_url( BD_Rest::NS . '/results/' . $r['token'] . '/pdf' ) ); ?>"><?php esc_html_e( 'Download PDF', 'business-doctor' ); ?></a>
 	<?php if ( $s['full_assessment_url'] ) : ?>
 		<a href="<?php echo esc_url( $s['full_assessment_url'] ); ?>"><?php esc_html_e( 'Explore the full Business Health Assessment', 'business-doctor' ); ?></a>
 	<?php endif; ?>

@@ -1,4 +1,6 @@
 .DS_Store
-/vendor/
 /node_modules/
 *.log
+
+# vendor/ is tracked, not ignored: it holds bundled library source (FPDF) that ships with the
+# plugin, not a Composer install. There is no composer.json in this repo to regenerate it from.

@@ -78,6 +78,15 @@ class BD_Rest {
 				'permission_callback' => $public,
 			)
 		);
+		register_rest_route(
+			self::NS,
+			'/results/(?P<token>[a-f0-9]{32})/pdf',
+			array(
+				'methods'             => 'GET',
+				'callback'            => array( __CLASS__, 'pdf' ),
+				'permission_callback' => $public,
+			)
+		);
 	}
 
 	/**
@@ -273,5 +282,30 @@ class BD_Rest {
 		}
 		set_transient( $key, 1, 10 * MINUTE_IN_SECONDS );
 		return rest_ensure_response( array( 'ok' => true ) );
+	}
+
+	/**
+	 * GET /results/{token}/pdf  streams the branded report as a PDF.
+	 *
+	 * @param WP_REST_Request $req Request.
+	 * @return WP_Error|void Nothing on success: the PDF is streamed and the request exits.
+	 */
+	public static function pdf( WP_REST_Request $req ) {
+		if ( ! BD_Rate_Limit::hit( 'pdf', 30 ) ) {
+			return self::too_many();
+		}
+		$r = BD_Results::get_by_token( (string) $req['token'] );
+		if ( ! $r ) {
+			return new WP_Error( 'bd_not_found', __( 'Assessment result not found', 'business-doctor' ), array( 'status' => 404 ) );
+		}
+		$pdf = BD_Pdf::build( $r );
+		nocache_headers();
+		header( 'Content-Type: application/pdf' );
+		header( 'Content-Length: ' . strlen( $pdf ) );
+		header( 'Content-Disposition: attachment; filename="' . sanitize_file_name( $r['platform'] . '-result.pdf' ) . '"' );
+		header( 'X-Robots-Tag: noindex, nofollow' );
+		// phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped
+		echo $pdf;
+		exit;
 	}
 }

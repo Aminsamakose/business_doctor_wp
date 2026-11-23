@@ -26,6 +26,7 @@ define( 'BD_URL', plugin_dir_url( __FILE__ ) );
 
 require_once BD_DIR . 'includes/class-bd-scoring.php';
 require_once BD_DIR . 'includes/class-bd-settings.php';
+require_once BD_DIR . 'includes/class-bd-pdf.php';
 require_once BD_DIR . 'includes/class-bd-install.php';
 require_once BD_DIR . 'includes/class-bd-frameworks.php';
 require_once BD_DIR . 'includes/class-bd-rate-limit.php';

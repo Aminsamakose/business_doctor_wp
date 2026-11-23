@@ -29,7 +29,7 @@ Requirements: WordPress 6.2 or later, PHP 7.4 or later, MySQL 5.7+ or MariaDB 10
 - Enter name and email, then acknowledge the privacy notice.
 - Answer 25 questions, one at a time, with a progress bar. It works on phones.
 - See the overall score, band, six dimension scores, strengths and priority areas.
-- Open a branded A4 report to print or save as PDF, or email it to themselves.
+- Download a branded PDF of the result, open a printable A4 report, or email a copy to themselves (the email includes the PDF as an attachment).
 - One free assessment per email address per platform, as in Samakose AI.
 
 **For staff (Business Doctor menu)**
@@ -78,6 +78,7 @@ Namespace `business-doctor/v1` (for example `/wp-json/business-doctor/v1/platfor
 | POST | `/complete` | Score answers and store the result |
 | GET | `/results/{token}` | A result, by its private token |
 | POST | `/results/{token}/email` | Email the result to the address it was taken with |
+| GET | `/results/{token}/pdf` | Download the result as a branded PDF |
 
 Developers can hook `bd_result_completed`, which receives the stored row, for example to push leads into a CRM.
 

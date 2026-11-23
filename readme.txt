@@ -27,4 +27,4 @@ Individual answers are scored on the server and never stored.
 == Changelog ==
 
 = 1.0.0 =
-* First release: free SME360, AgriFood360 and ESO360 assessments, results and leads, question-bank versioning, printable reports, CSV export, personal-data export and erase.
+* First release: free SME360, AgriFood360 and ESO360 assessments, results and leads, question-bank versioning, printable reports, downloadable PDF reports, CSV export, personal-data export and erase.

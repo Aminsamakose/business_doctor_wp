@@ -241,7 +241,11 @@
 				el( 'div', { class: 'bd-progress' }, [ el( 'div', { style: 'width:' + Math.max( 0, Math.min( 100, d.score ) ) + '%' } ) ] )
 			] );
 		} ) );
-		var actions = [ mailBtn, el( 'a', { class: 'bd-btn', href: r.reportUrl, target: '_blank', rel: 'noopener', text: T.report } ) ];
+		var actions = [
+			mailBtn,
+			el( 'a', { class: 'bd-btn', href: CFG.api + '/results/' + r.token + '/pdf', text: T.download } ),
+			el( 'a', { class: 'bd-btn', href: r.reportUrl, target: '_blank', rel: 'noopener', text: T.report } )
+		];
 		var after = [];
 		if ( CFG.fullUrl ) { after.push( el( 'a', { class: 'bd-btn bd-btn-primary', href: CFG.fullUrl, text: T.explore } ) ); }
 		if ( ! self.fixed ) {
