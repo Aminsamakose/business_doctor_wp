@@ -177,7 +177,7 @@ class BD_Frameworks_Admin {
 		echo '<p class="description">' . esc_html__( 'Each platform has one live (published) version. To change questions, create a draft, edit it, then publish. Earlier results keep the version they were taken under.', 'business-doctor' ) . '</p>';
 		$counts = self::result_counts();
 		echo '<table class="widefat striped"><thead><tr><th>' . esc_html__( 'Platform', 'business-doctor' ) . '</th><th>' . esc_html__( 'Version', 'business-doctor' ) . '</th><th>' . esc_html__( 'Status', 'business-doctor' ) . '</th><th>' . esc_html__( 'Questions', 'business-doctor' ) . '</th><th>' . esc_html__( 'Results', 'business-doctor' ) . '</th><th>' . esc_html__( 'Actions', 'business-doctor' ) . '</th></tr></thead><tbody>';
-		foreach ( BD_Frameworks::all_versions() as $f ) {
+		foreach ( BD_Frameworks::all_versions( 'free' ) as $f ) {
 			echo '<tr><td><strong>' . esc_html( BD_Frameworks::short_name( $f['platform'] ) ) . '</strong><br><span class="description">' . esc_html( $f['name'] ) . '</span></td>';
 			echo '<td>' . esc_html( $f['version'] ) . '</td>';
 			echo '<td><span class="bd-status bd-fw-' . esc_attr( $f['status'] ) . '">' . esc_html( ucfirst( $f['status'] ) ) . '</span></td>';

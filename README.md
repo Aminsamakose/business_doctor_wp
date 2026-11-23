@@ -94,11 +94,18 @@ This runs scoring parity (912 cases from the original TypeScript), band boundari
 
 | Phase | Scope | Notes |
 |---|---|---|
-| **1 (this release)** | Free assessments, scoring, results, leads, question banks, reports, settings | Complete |
-| 2 | Accounts for business owners (WordPress users with a Business Owner role), organisation profiles, the full paid assessments (SME360 v2 with 118 questions; AgriFood360 and ESO360 with 100 questions), evidence uploads | The full banks and the evidence-weighted scorer port from `samakose-ai` |
+| **1** | Free assessments, scoring, results, leads, question banks, reports, settings | Complete |
+| **2 (this release)** | Accounts for business owners (WordPress users with a Business Owner role), organisation profiles, the full paid assessments (SME360 v2, AgriFood360 v1 and ESO360 v1, 100 evidence-weighted questions each), evidence classes on every answer | Question banks pulled from the published Samakose AI database and the evidence-weighted scorer ported from `samakose-ai`; parity-tested at 12596/12596 checks. Evidence file uploads and a dedicated staff editor for the full question banks are not yet built (see Known limitations) |
 | 3 | Payments with Paystack (Ghana cedis), plans and entitlements, invoices | Webhook and verify-on-return from day one |
 | 4 | AI diagnosis and prescription drafts with expert review and approval, action plans, KPIs and re-assessment | Reuses the Claude prompts and the four-eyes approval rules |
 | 5 | Programmes for donors and cohorts, expert network, reporting dashboards | Highest effort; decide scope after phases 2 to 4 are in use |
+
+## Known limitations (Phase 2)
+
+- Evidence is recorded as an evidence class and a text note per answer; attaching a supporting document to an answer is not yet built.
+- The "Question Banks" admin screen still only lists and edits the free assessment's banks. The three full-assessment banks (100 questions each, pulled from the published Samakose AI database) are seeded as published and not yet editable from wp-admin.
+- Phase 2 has been verified with standalone PHP tests (scoring parity, question-bank integrity) but not yet end to end on a real WordPress and MariaDB install, unlike Phase 1.
+- Routing a new lead to a specific staff member (as in Samakose AI's admin) is not ported; Phase 1's single notification-email setting covers both phases for now.
 
 ## Licence
 

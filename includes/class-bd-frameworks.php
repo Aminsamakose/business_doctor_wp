@@ -65,13 +65,15 @@ class BD_Frameworks {
 	 * The published version for a platform.
 	 *
 	 * @param string $platform Platform code.
+	 * @param string $purpose  'free' (default, the public preliminary assessment) or 'full' (the
+	 *                         evidence-based assessment business owners take).
 	 * @return array|null
 	 */
-	public static function published( $platform ) {
+	public static function published( $platform, $purpose = 'free' ) {
 		global $wpdb;
 		$t = BD_Install::tables();
 		// phpcs:ignore WordPress.DB.DirectDatabaseQuery
-		$row = $wpdb->get_row( $wpdb->prepare( "SELECT * FROM {$t['frameworks']} WHERE platform = %s AND status = 'published' ORDER BY version DESC LIMIT 1", $platform ) );
+		$row = $wpdb->get_row( $wpdb->prepare( "SELECT * FROM {$t['frameworks']} WHERE platform = %s AND purpose = %s AND status = 'published' ORDER BY version DESC LIMIT 1", $platform, $purpose ) );
 		return self::hydrate( $row );
 	}
 
@@ -91,13 +93,19 @@ class BD_Frameworks {
 	/**
 	 * Every version of every platform, newest first within each platform.
 	 *
+	 * @param string|null $purpose Restrict to 'free' or 'full'; omit for both.
 	 * @return array[]
 	 */
-	public static function all_versions() {
+	public static function all_versions( $purpose = null ) {
 		global $wpdb;
 		$t = BD_Install::tables();
-		// phpcs:ignore WordPress.DB.DirectDatabaseQuery, WordPress.DB.PreparedSQL.InterpolatedNotPrepared
-		$rows = $wpdb->get_results( "SELECT * FROM {$t['frameworks']} ORDER BY platform ASC, version DESC" );
+		if ( null !== $purpose ) {
+			// phpcs:ignore WordPress.DB.DirectDatabaseQuery
+			$rows = $wpdb->get_results( $wpdb->prepare( "SELECT * FROM {$t['frameworks']} WHERE purpose = %s ORDER BY platform ASC, version DESC", $purpose ) );
+		} else {
+			// phpcs:ignore WordPress.DB.DirectDatabaseQuery, WordPress.DB.PreparedSQL.InterpolatedNotPrepared
+			$rows = $wpdb->get_results( "SELECT * FROM {$t['frameworks']} ORDER BY platform ASC, version DESC" );
+		}
 		return array_map( array( __CLASS__, 'hydrate' ), $rows ?: array() );
 	}
 
@@ -116,17 +124,18 @@ class BD_Frameworks {
 			return new WP_Error( 'bd_not_found', __( 'That question bank was not found.', 'business-doctor' ) );
 		}
 		// phpcs:ignore WordPress.DB.DirectDatabaseQuery
-		$draft = $wpdb->get_var( $wpdb->prepare( "SELECT id FROM {$t['frameworks']} WHERE platform = %s AND status = 'draft' LIMIT 1", $from['platform'] ) );
+		$draft = $wpdb->get_var( $wpdb->prepare( "SELECT id FROM {$t['frameworks']} WHERE platform = %s AND purpose = %s AND status = 'draft' LIMIT 1", $from['platform'], $from['purpose'] ) );
 		if ( $draft ) {
 			return (int) $draft;
 		}
 		// phpcs:ignore WordPress.DB.DirectDatabaseQuery
-		$next = (int) $wpdb->get_var( $wpdb->prepare( "SELECT MAX(version) FROM {$t['frameworks']} WHERE platform = %s", $from['platform'] ) ) + 1;
+		$next = (int) $wpdb->get_var( $wpdb->prepare( "SELECT MAX(version) FROM {$t['frameworks']} WHERE platform = %s AND purpose = %s", $from['platform'], $from['purpose'] ) ) + 1;
 		// phpcs:ignore WordPress.DB.DirectDatabaseQuery
 		$ok = $wpdb->insert(
 			$t['frameworks'],
 			array(
 				'platform'   => $from['platform'],
+				'purpose'    => $from['purpose'],
 				'code'       => $from['code'],
 				'name'       => $from['name'],
 				'audience'   => $from['audience'],
@@ -247,7 +256,7 @@ class BD_Frameworks {
 		// One transaction, so a platform is never left with no live version or with two.
 		// phpcs:disable WordPress.DB.DirectDatabaseQuery
 		$wpdb->query( 'START TRANSACTION' );
-		$retired   = $wpdb->query( $wpdb->prepare( "UPDATE {$t['frameworks']} SET status = 'retired' WHERE platform = %s AND status = 'published'", $f['platform'] ) );
+		$retired   = $wpdb->query( $wpdb->prepare( "UPDATE {$t['frameworks']} SET status = 'retired' WHERE platform = %s AND purpose = %s AND status = 'published'", $f['platform'], $f['purpose'] ) );
 		$published = $wpdb->update(
 			$t['frameworks'],
 			array(

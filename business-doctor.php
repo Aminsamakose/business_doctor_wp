@@ -18,13 +18,14 @@
 
 defined( 'ABSPATH' ) || exit;
 
-define( 'BD_VERSION', '1.0.0' );
-define( 'BD_DB_VERSION', '1' );
+define( 'BD_VERSION', '1.1.0' );
+define( 'BD_DB_VERSION', '2' );
 define( 'BD_FILE', __FILE__ );
 define( 'BD_DIR', plugin_dir_path( __FILE__ ) );
 define( 'BD_URL', plugin_dir_url( __FILE__ ) );
 
 require_once BD_DIR . 'includes/class-bd-scoring.php';
+require_once BD_DIR . 'includes/class-bd-diagnostic-scoring.php';
 require_once BD_DIR . 'includes/class-bd-settings.php';
 require_once BD_DIR . 'includes/class-bd-pdf.php';
 require_once BD_DIR . 'includes/class-bd-install.php';
@@ -36,11 +37,18 @@ require_once BD_DIR . 'includes/class-bd-rest.php';
 require_once BD_DIR . 'includes/class-bd-shortcodes.php';
 require_once BD_DIR . 'includes/class-bd-report.php';
 require_once BD_DIR . 'includes/class-bd-privacy.php';
+require_once BD_DIR . 'includes/class-bd-accounts.php';
+require_once BD_DIR . 'includes/class-bd-organisations.php';
+require_once BD_DIR . 'includes/class-bd-diagnostics.php';
+require_once BD_DIR . 'includes/class-bd-rest-owner.php';
+require_once BD_DIR . 'includes/class-bd-owner-shortcodes.php';
 
 if ( is_admin() ) {
 	require_once BD_DIR . 'includes/admin/class-bd-admin.php';
 	require_once BD_DIR . 'includes/admin/class-bd-results-table.php';
 	require_once BD_DIR . 'includes/admin/class-bd-frameworks-admin.php';
+	require_once BD_DIR . 'includes/admin/class-bd-diagnostics-admin.php';
+	require_once BD_DIR . 'includes/admin/class-bd-diagnostics-table.php';
 }
 
 register_activation_hook( __FILE__, array( 'BD_Install', 'activate' ) );
@@ -57,8 +65,12 @@ function bd_boot() {
 	BD_Shortcodes::init();
 	BD_Report::init();
 	BD_Privacy::init();
+	BD_Accounts::init();
+	BD_Rest_Owner::init();
+	BD_Owner_Shortcodes::init();
 	if ( is_admin() ) {
 		BD_Admin::init();
 		BD_Frameworks_Admin::init();
+		BD_Diagnostics_Admin::init();
 	}
 }
