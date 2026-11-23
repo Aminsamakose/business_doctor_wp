@@ -347,6 +347,109 @@
 			el( 'h3', { text: T.dimensions } ),
 			dims,
 		] ) );
+		this.loadPlan();
+	};
+
+	/* --- Diagnosis, prescription, action plan and KPIs --- */
+
+	App.prototype.loadPlan = function () {
+		var self = this;
+		request( 'GET', '/owner/diagnostics/' + this.diagnostic.id + '/plan' ).then( function ( res ) {
+			if ( ! res.ok ) { return; }
+			self.renderPlan( res.data );
+		} );
+	};
+
+	App.prototype.renderPlan = function ( plan ) {
+		var self = this;
+		if ( plan.diagnosis ) {
+			var causes = el( 'ul', { class: 'bd-root-causes' } );
+			( plan.diagnosis.rootCauses || [] ).forEach( function ( rc ) {
+				causes.appendChild( el( 'li', { text: rc.cause || '' } ) );
+			} );
+			var risks = el( 'ul', { class: 'bd-risks' } );
+			( plan.diagnosis.risks || [] ).forEach( function ( r ) {
+				risks.appendChild( el( 'li', {}, [ el( 'strong', { text: r.severity + ': ' } ), el( 'span', { text: r.text } ) ] ) );
+			} );
+			this.root.appendChild( el( 'div', { class: 'bd-card bd-diagnosis' }, [
+				el( 'h3', { text: T.diagnosisTitle } ),
+				el( 'p', { text: plan.diagnosis.summary } ),
+				el( 'p', {}, [ el( 'strong', { text: T.priority + ': ' } ), el( 'span', { text: plan.diagnosis.priority } ) ] ),
+				causes.children.length ? el( 'div', {}, [ el( 'h4', { text: T.rootCauses } ), causes ] ) : null,
+				risks.children.length ? el( 'div', {}, [ el( 'h4', { text: T.risks } ), risks ] ) : null,
+			] ) );
+		}
+		if ( plan.prescription ) {
+			var items = el( 'div', { class: 'bd-prescription-items' } );
+			( plan.prescription.items || [] ).forEach( function ( item ) {
+				var actions = el( 'ul', {} );
+				( item.actions || [] ).forEach( function ( a ) {
+					actions.appendChild( el( 'li', { text: a.text + ' (' + a.deadline_days + ' ' + T.days + ')' } ) );
+				} );
+				items.appendChild( el( 'div', { class: 'bd-prescription-item' }, [
+					el( 'h4', { text: item.title || '' } ),
+					item.description ? el( 'p', { text: item.description } ) : null,
+					actions,
+				] ) );
+			} );
+			this.root.appendChild( el( 'div', { class: 'bd-card bd-prescription' }, [
+				el( 'h3', { text: T.prescriptionTitle } ),
+				items,
+			] ) );
+		}
+		if ( plan.actions && plan.actions.length ) {
+			var list = el( 'ul', { class: 'bd-action-list' } );
+			plan.actions.forEach( function ( a ) {
+				var status = el( 'span', { class: 'bd-save-status' } );
+				var row = [ el( 'span', { text: a.text } ), el( 'span', { class: 'bd-due', text: a.dueDate ? ( T.due + ' ' + a.dueDate ) : '' } ) ];
+				if ( 'owner' === a.ownerRole && 'open' === a.status ) {
+					var btn = el( 'button', { class: 'bd-btn', type: 'button', text: T.markDone, onclick: function () {
+						btn.disabled = true;
+						request( 'PUT', '/owner/actions/' + a.id + '/done' ).then( function ( res ) {
+							if ( ! res.ok ) { btn.disabled = false; status.textContent = res.message || ''; return; }
+							btn.replaceWith( el( 'span', { class: 'bd-done-tag', text: T.done } ) );
+						} );
+					} } );
+					row.push( btn );
+				} else if ( 'done' === a.status ) {
+					row.push( el( 'span', { class: 'bd-done-tag', text: T.done } ) );
+				}
+				row.push( status );
+				list.appendChild( el( 'li', { class: 'bd-action' }, row ) );
+			} );
+			this.root.appendChild( el( 'div', { class: 'bd-card bd-action-plan' }, [ el( 'h3', { text: T.actionPlanTitle } ), list ] ) );
+		}
+		if ( plan.kpis && plan.kpis.length ) {
+			var kpiList = el( 'div', { class: 'bd-kpi-list' } );
+			plan.kpis.forEach( function ( k ) {
+				var history = el( 'ul', { class: 'bd-kpi-history' } );
+				( k.checkins || [] ).forEach( function ( c ) {
+					history.appendChild( el( 'li', { text: c.value + ' — ' + c.createdAt } ) );
+				} );
+				var valueInput = el( 'input', { type: 'text', placeholder: T.kpiValue } );
+				var noteInput = el( 'input', { type: 'text', placeholder: T.kpiNote } );
+				var status = el( 'span', { class: 'bd-save-status' } );
+				var addBtn = el( 'button', { class: 'bd-btn', type: 'button', text: T.logCheckin, onclick: function () {
+					if ( ! valueInput.value ) { return; }
+					addBtn.disabled = true;
+					request( 'POST', '/owner/kpis/' + k.id + '/checkins', { value: valueInput.value, note: noteInput.value } ).then( function ( res ) {
+						addBtn.disabled = false;
+						if ( ! res.ok ) { status.textContent = res.message || ''; return; }
+						history.insertBefore( el( 'li', { text: valueInput.value } ), history.firstChild );
+						valueInput.value = '';
+						noteInput.value = '';
+						status.textContent = '';
+					} );
+				} } );
+				kpiList.appendChild( el( 'div', { class: 'bd-kpi' }, [
+					el( 'h4', { text: k.name } ),
+					k.target ? el( 'p', { text: T.target + ': ' + k.target } ) : null,
+					history,
+					el( 'div', { class: 'bd-kpi-checkin-form' }, [ valueInput, noteInput, addBtn, status ] ),
+				] ) );
+			} );
+			this.root.appendChild( el( 'div', { class: 'bd-card bd-kpis' }, [ el( 'h3', { text: T.kpisTitle } ), kpiList ] ) );
+		}
 	};
 
 	document.addEventListener( 'DOMContentLoaded', function () {

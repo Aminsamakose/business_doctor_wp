@@ -106,6 +106,25 @@
 .bd-app .bd-dim-name { font-weight: 600; }
 .bd-app .bd-note { background: var(--bd-surface-2); border-radius: .75rem; padding: 1rem; font-size: .85rem; color: var(--bd-muted); }
 
+/* Diagnosis, prescription, action plan and KPIs (Phase 4) */
+.bd-app .bd-diagnosis h4, .bd-app .bd-prescription h4, .bd-app .bd-kpi h4 { font-size: 1rem; margin: 0 0 .4rem; }
+.bd-app .bd-root-causes, .bd-app .bd-risks { margin: 0; padding-left: 1.25rem; font-size: .9rem; }
+.bd-app .bd-root-causes li, .bd-app .bd-risks li { margin-bottom: .3rem; }
+.bd-app .bd-prescription-items { display: flex; flex-direction: column; gap: 1.25rem; }
+.bd-app .bd-prescription-item { border-top: 1px solid var(--bd-line); padding-top: 1rem; }
+.bd-app .bd-prescription-item:first-child { border-top: none; padding-top: 0; }
+.bd-app .bd-prescription-item ul { margin: .5rem 0 0; padding-left: 1.25rem; font-size: .9rem; }
+.bd-app .bd-action-list { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: .75rem; }
+.bd-app .bd-action { display: flex; flex-wrap: wrap; align-items: center; gap: .75rem; border: 1px solid var(--bd-line); border-radius: .75rem; padding: .75rem 1rem; }
+.bd-app .bd-action .bd-due { color: var(--bd-muted); font-size: .85rem; margin-left: auto; }
+.bd-app .bd-done-tag { color: var(--bd-leaf); font-weight: 600; font-size: .85rem; }
+.bd-app .bd-kpi-list { display: flex; flex-direction: column; gap: 1.25rem; }
+.bd-app .bd-kpi { border-top: 1px solid var(--bd-line); padding-top: 1rem; }
+.bd-app .bd-kpi:first-child { border-top: none; padding-top: 0; }
+.bd-app .bd-kpi-history { margin: .5rem 0; padding-left: 1.25rem; font-size: .85rem; color: var(--bd-muted); }
+.bd-app .bd-kpi-checkin-form { display: flex; flex-wrap: wrap; gap: .5rem; }
+.bd-app .bd-kpi-checkin-form input { flex: 1 1 8rem; width: auto; }
+
 @media (prefers-reduced-motion: reduce) {
 	.bd-app * { transition: none !important; }
 }

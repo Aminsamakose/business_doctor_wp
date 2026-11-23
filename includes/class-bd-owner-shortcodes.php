@@ -103,6 +103,21 @@ class BD_Owner_Shortcodes {
 				'paymentPending'  => __( 'Your payment is still being confirmed. This can take a minute; refresh to check again.', 'business-doctor' ),
 				'notConfigured'   => __( 'Online payment is not set up yet. Please contact us to arrange access.', 'business-doctor' ),
 				'invoice'         => __( 'Invoice', 'business-doctor' ),
+				'diagnosisTitle'     => __( 'Your diagnosis', 'business-doctor' ),
+				'priority'           => __( 'Priority', 'business-doctor' ),
+				'rootCauses'         => __( 'What we found', 'business-doctor' ),
+				'risks'              => __( 'Risks to watch', 'business-doctor' ),
+				'prescriptionTitle'  => __( 'Your prescription', 'business-doctor' ),
+				'days'               => __( 'days', 'business-doctor' ),
+				'actionPlanTitle'    => __( 'Your action plan', 'business-doctor' ),
+				'due'                => __( 'Due', 'business-doctor' ),
+				'markDone'           => __( 'Mark done', 'business-doctor' ),
+				'done'               => __( 'Done', 'business-doctor' ),
+				'kpisTitle'          => __( 'Your KPIs', 'business-doctor' ),
+				'target'             => __( 'Target', 'business-doctor' ),
+				'kpiValue'           => __( 'Value', 'business-doctor' ),
+				'kpiNote'            => __( 'Note (optional)', 'business-doctor' ),
+				'logCheckin'         => __( 'Log check-in', 'business-doctor' ),
 			),
 			// "Verified" is left out deliberately: only a reviewer can mark evidence as independently
 			// verified, since a business owner cannot verify their own evidence. The REST API rejects
@@ -139,6 +154,9 @@ class BD_Owner_Shortcodes {
 		wp_enqueue_style( 'business-doctor' );
 		wp_enqueue_script( 'business-doctor-owner' );
 		wp_add_inline_script( 'business-doctor-owner', 'window.BusinessDoctorOwner = ' . wp_json_encode( self::config() ) . ';', 'before' );
-		return '<div class="bd-owner-app" data-platform="' . esc_attr( bd_sanitize_code( $atts['platform'] ) ) . '"></div>';
+		// "bd-app" carries every base style in business-doctor.css (cards, buttons, fields, the
+		// colour variables); "bd-owner-app" is kept alongside it only as the JS bootstrap's own
+		// selector (see owner.js's DOMContentLoaded handler), not a styling hook.
+		return '<div class="bd-app bd-owner-app" data-platform="' . esc_attr( bd_sanitize_code( $atts['platform'] ) ) . '"></div>';
 	}
 }
