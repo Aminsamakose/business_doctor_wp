@@ -118,6 +118,14 @@ class BD_Privacy {
 				),
 			);
 		}
+		foreach ( self::owner_user_id( $email ) ? self::clinical_for_user( self::owner_user_id( $email ) ) : array() as $c ) {
+			$items[] = array(
+				'group_id'    => 'business-doctor-owner',
+				'group_label' => __( 'Business Doctor organisation profiles', 'business-doctor' ),
+				'item_id'     => 'bd-' . $c['kind'] . '-' . $c['id'],
+				'data'        => $c['data'],
+			);
+		}
 		foreach ( self::owner_user_id( $email ) ? self::payments_for_user( self::owner_user_id( $email ) ) : array() as $p ) {
 			$items[] = array(
 				'group_id'    => 'business-doctor-owner',
@@ -153,6 +161,74 @@ class BD_Privacy {
 	}
 
 	/**
+	 * A user's diagnoses, prescriptions, action-plan items and KPIs, across every organisation they
+	 * hold, flattened into exportable rows. These are drafted or approved by staff but are about this
+	 * person's own business, so they are personal data the same way their assessment answers are.
+	 *
+	 * @param int $user_id User id.
+	 * @return array[] Each with 'kind', 'id', 'data'.
+	 */
+	private static function clinical_for_user( $user_id ) {
+		$out = array();
+		foreach ( BD_Diagnostics::for_user( $user_id ) as $d ) {
+			foreach ( BD_Case_Diagnoses::list_for_diagnostic( $d['id'] ) as $diag ) {
+				$out[] = array(
+					'kind' => 'diagnosis',
+					'id'   => $diag['id'],
+					'data' => array(
+						array( 'name' => __( 'Platform', 'business-doctor' ), 'value' => BD_Frameworks::short_name( $diag['platform'] ) ),
+						array( 'name' => __( 'Diagnosis status', 'business-doctor' ), 'value' => ucfirst( $diag['status'] ) ),
+						array( 'name' => __( 'Summary', 'business-doctor' ), 'value' => (string) $diag['summary'] ),
+						array( 'name' => __( 'Priority', 'business-doctor' ), 'value' => (string) $diag['priority'] ),
+						array( 'name' => __( 'Drafted', 'business-doctor' ), 'value' => (string) $diag['created_at'] ),
+					),
+				);
+				foreach ( BD_Prescriptions::list_for_diagnosis( $diag['id'] ) as $rx ) {
+					$titles = wp_list_pluck( (array) $rx['items'], 'title' );
+					$out[]  = array(
+						'kind' => 'prescription',
+						'id'   => $rx['id'],
+						'data' => array(
+							array( 'name' => __( 'Platform', 'business-doctor' ), 'value' => BD_Frameworks::short_name( $rx['platform'] ) ),
+							array( 'name' => __( 'Prescription status', 'business-doctor' ), 'value' => ucfirst( $rx['status'] ) ),
+							array( 'name' => __( 'Items', 'business-doctor' ), 'value' => implode( '; ', array_filter( $titles ) ) ),
+							array( 'name' => __( 'Drafted', 'business-doctor' ), 'value' => (string) $rx['created_at'] ),
+						),
+					);
+				}
+			}
+		}
+		foreach ( BD_Organisations::for_user( $user_id ) as $org ) {
+			foreach ( BD_Actions::for_org( $org['id'] ) as $a ) {
+				$out[] = array(
+					'kind' => 'action',
+					'id'   => $a['id'],
+					'data' => array(
+						array( 'name' => __( 'Action', 'business-doctor' ), 'value' => (string) $a['text'] ),
+						array( 'name' => __( 'Status', 'business-doctor' ), 'value' => ucfirst( $a['status'] ) ),
+						array( 'name' => __( 'Due', 'business-doctor' ), 'value' => (string) $a['due_date'] ),
+					),
+				);
+			}
+			foreach ( BD_Kpis::for_org( $org['id'] ) as $k ) {
+				$checkins = array();
+				foreach ( $k['checkins'] as $c ) {
+					$checkins[] = $c['value'] . ' (' . $c['created_at'] . ')';
+				}
+				$out[] = array(
+					'kind' => 'kpi',
+					'id'   => $k['id'],
+					'data' => array(
+						array( 'name' => __( 'KPI', 'business-doctor' ), 'value' => (string) $k['name'] ),
+						array( 'name' => __( 'Check-ins', 'business-doctor' ), 'value' => implode( '; ', $checkins ) ),
+					),
+				);
+			}
+		}
+		return $out;
+	}
+
+	/**
 	 * The business-owner WordPress user id for an email address, if one exists.
 	 *
 	 * @param string $email Email.
@@ -185,6 +261,13 @@ class BD_Privacy {
 						wp_delete_attachment( (int) $a['attachmentId'], true );
 					}
 				}
+				foreach ( BD_Case_Diagnoses::list_for_diagnostic( $d['id'] ) as $diag ) {
+					// phpcs:ignore WordPress.DB.DirectDatabaseQuery
+					$wpdb->delete( $t['prescriptions'], array( 'diagnosis_id' => $diag['id'] ) );
+					// phpcs:ignore WordPress.DB.DirectDatabaseQuery
+					$wpdb->delete( $t['case_diagnoses'], array( 'id' => $diag['id'] ) );
+					$removed++;
+				}
 				// phpcs:ignore WordPress.DB.DirectDatabaseQuery
 				$wpdb->delete( $t['diagnostic_answers'], array( 'diagnostic_id' => $d['id'] ) );
 				// phpcs:ignore WordPress.DB.DirectDatabaseQuery
@@ -192,6 +275,14 @@ class BD_Privacy {
 				$removed++;
 			}
 			foreach ( BD_Organisations::for_user( $user_id ) as $org ) {
+				foreach ( BD_Kpis::for_org( $org['id'] ) as $k ) {
+					// phpcs:ignore WordPress.DB.DirectDatabaseQuery
+					$wpdb->delete( $t['kpi_checkins'], array( 'kpi_id' => $k['id'] ) );
+				}
+				// phpcs:ignore WordPress.DB.DirectDatabaseQuery
+				$wpdb->delete( $t['kpis'], array( 'org_id' => $org['id'] ) );
+				// phpcs:ignore WordPress.DB.DirectDatabaseQuery
+				$wpdb->delete( $t['actions'], array( 'org_id' => $org['id'] ) );
 				// phpcs:ignore WordPress.DB.DirectDatabaseQuery
 				$wpdb->delete( $t['organisations'], array( 'id' => $org['id'] ) );
 				$removed++;

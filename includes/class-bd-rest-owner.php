@@ -148,6 +148,33 @@ class BD_Rest_Owner {
 				'permission_callback' => array( __CLASS__, 'permission' ),
 			)
 		);
+		register_rest_route(
+			self::NS,
+			'/owner/diagnostics/(?P<id>\d+)/plan',
+			array(
+				'methods'             => 'GET',
+				'callback'            => array( __CLASS__, 'get_plan' ),
+				'permission_callback' => array( __CLASS__, 'permission' ),
+			)
+		);
+		register_rest_route(
+			self::NS,
+			'/owner/actions/(?P<id>\d+)/done',
+			array(
+				'methods'             => 'PUT',
+				'callback'            => array( __CLASS__, 'mark_action_done' ),
+				'permission_callback' => array( __CLASS__, 'permission' ),
+			)
+		);
+		register_rest_route(
+			self::NS,
+			'/owner/kpis/(?P<id>\d+)/checkins',
+			array(
+				'methods'             => 'POST',
+				'callback'            => array( __CLASS__, 'add_kpi_checkin' ),
+				'permission_callback' => array( __CLASS__, 'permission' ),
+			)
+		);
 	}
 
 	/**
@@ -507,5 +534,120 @@ class BD_Rest_Owner {
 	public static function list_diagnostics() {
 		$items = array_map( array( 'BD_Diagnostics', 'to_public' ), BD_Diagnostics::for_user( get_current_user_id() ) );
 		return rest_ensure_response( $items );
+	}
+
+	/**
+	 * GET /owner/diagnostics/{id}/plan -- the reviewed diagnosis (if any), the approved prescription
+	 * (if any), the organisation's action plan, and its KPIs with their check-in history. Everything
+	 * here is already staff-approved; a draft or rejected diagnosis/prescription is never exposed to
+	 * an owner.
+	 *
+	 * @param WP_REST_Request $req Request.
+	 * @return WP_REST_Response|WP_Error
+	 */
+	public static function get_plan( WP_REST_Request $req ) {
+		$d = self::owned_diagnostic( $req['id'] );
+		if ( is_wp_error( $d ) ) {
+			return $d;
+		}
+		$out = array(
+			'diagnosis'    => null,
+			'prescription' => null,
+			'actions'      => array(),
+			'kpis'         => array(),
+		);
+		$diagnosis = BD_Case_Diagnoses::latest_reviewed( $d['id'] );
+		if ( $diagnosis ) {
+			$out['diagnosis'] = BD_Case_Diagnoses::to_public( $diagnosis );
+			$prescription      = BD_Prescriptions::latest_approved( $diagnosis['id'] );
+			if ( $prescription ) {
+				$out['prescription'] = BD_Prescriptions::to_public( $prescription );
+			}
+		}
+		$org = BD_Organisations::get( $d['org_id'] );
+		if ( $org ) {
+			$out['actions'] = array_map( array( 'BD_Actions', 'to_public' ), BD_Actions::for_org( $org['id'] ) );
+			$out['kpis']    = array_map( array( 'BD_Kpis', 'to_public' ), BD_Kpis::for_org( $org['id'] ) );
+		}
+		return rest_ensure_response( $out );
+	}
+
+	/**
+	 * An action belonging to one of the current user's own organisations, or an error. Unlike
+	 * owned_diagnostic(), an action is not looked up by diagnostic id, so this checks ownership via
+	 * the action's organisation instead.
+	 *
+	 * @param int $id Action id.
+	 * @return array|WP_Error
+	 */
+	private static function owned_action( $id ) {
+		$a = BD_Actions::get( (int) $id );
+		if ( ! $a ) {
+			return new WP_Error( 'bd_not_found', __( 'Action not found.', 'business-doctor' ), array( 'status' => 404 ) );
+		}
+		$org = BD_Organisations::get( $a['org_id'] );
+		if ( ! $org || (int) $org['user_id'] !== get_current_user_id() ) {
+			return new WP_Error( 'bd_not_found', __( 'Action not found.', 'business-doctor' ), array( 'status' => 404 ) );
+		}
+		return $a;
+	}
+
+	/**
+	 * PUT /owner/actions/{id}/done -- the owner may only mark their own owner-role actions done;
+	 * BD_Actions::mark_done() itself re-checks the assignee, so a staff-role action (assigned to no
+	 * one, or to a staff member) is rejected the same way a different owner's action would be.
+	 *
+	 * @param WP_REST_Request $req Request.
+	 * @return WP_REST_Response|WP_Error
+	 */
+	public static function mark_action_done( WP_REST_Request $req ) {
+		$a = self::owned_action( $req['id'] );
+		if ( is_wp_error( $a ) ) {
+			return $a;
+		}
+		if ( 'owner' !== $a['owner_role'] ) {
+			// A staff-role action has no assignee (BD_Actions::mark_done() only checks the assignee when
+			// one is set), so this plugin's owner-facing API must itself keep an owner from closing a
+			// task that belongs to staff.
+			return new WP_Error( 'bd_forbidden', __( 'This action belongs to a member of staff, not to you.', 'business-doctor' ), array( 'status' => 403 ) );
+		}
+		$result = BD_Actions::mark_done( $a, get_current_user_id() );
+		return is_wp_error( $result ) ? $result : rest_ensure_response( BD_Actions::to_public( $result ) );
+	}
+
+	/**
+	 * A KPI belonging to one of the current user's own organisations, or an error.
+	 *
+	 * @param int $id KPI id.
+	 * @return array|WP_Error
+	 */
+	private static function owned_kpi( $id ) {
+		$k = BD_Kpis::get( (int) $id );
+		if ( ! $k ) {
+			return new WP_Error( 'bd_not_found', __( 'KPI not found.', 'business-doctor' ), array( 'status' => 404 ) );
+		}
+		$org = BD_Organisations::get( $k['org_id'] );
+		if ( ! $org || (int) $org['user_id'] !== get_current_user_id() ) {
+			return new WP_Error( 'bd_not_found', __( 'KPI not found.', 'business-doctor' ), array( 'status' => 404 ) );
+		}
+		return $k;
+	}
+
+	/**
+	 * POST /owner/kpis/{id}/checkins  { value, note }
+	 *
+	 * @param WP_REST_Request $req Request.
+	 * @return WP_REST_Response|WP_Error
+	 */
+	public static function add_kpi_checkin( WP_REST_Request $req ) {
+		$k = self::owned_kpi( $req['id'] );
+		if ( is_wp_error( $k ) ) {
+			return $k;
+		}
+		if ( ! BD_Rate_Limit::hit( 'owner_kpi_checkin', 60, HOUR_IN_SECONDS ) ) {
+			return new WP_Error( 'bd_rate_limited', __( 'Too many check-ins. Please wait a few minutes and try again.', 'business-doctor' ), array( 'status' => 429 ) );
+		}
+		$result = BD_Kpis::add_checkin( $k, (string) $req->get_param( 'value' ), (string) $req->get_param( 'note' ), get_current_user_id() );
+		return is_wp_error( $result ) ? $result : rest_ensure_response( array( 'ok' => true ) );
 	}
 }

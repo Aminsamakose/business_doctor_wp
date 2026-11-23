@@ -33,6 +33,11 @@ $wpdb->query( "DROP TABLE IF EXISTS {$wpdb->prefix}bd_organisations" );
 $wpdb->query( "DROP TABLE IF EXISTS {$wpdb->prefix}bd_payments" );
 $wpdb->query( "DROP TABLE IF EXISTS {$wpdb->prefix}bd_entitlements" );
 $wpdb->query( "DROP TABLE IF EXISTS {$wpdb->prefix}bd_webhook_events" );
+$wpdb->query( "DROP TABLE IF EXISTS {$wpdb->prefix}bd_case_diagnoses" );
+$wpdb->query( "DROP TABLE IF EXISTS {$wpdb->prefix}bd_prescriptions" );
+$wpdb->query( "DROP TABLE IF EXISTS {$wpdb->prefix}bd_actions" );
+$wpdb->query( "DROP TABLE IF EXISTS {$wpdb->prefix}bd_kpis" );
+$wpdb->query( "DROP TABLE IF EXISTS {$wpdb->prefix}bd_kpi_checkins" );
 $wpdb->query( "DELETE FROM {$wpdb->options} WHERE option_name LIKE '\_transient\_bd\_%' OR option_name LIKE '\_transient\_timeout\_bd\_%'" );
 // phpcs:enable
 delete_option( 'bd_settings' );

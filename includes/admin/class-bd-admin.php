@@ -418,6 +418,22 @@ class BD_Admin {
 					<?php $readiness = BD_Paystack::is_configured() ? ( BD_Paystack::is_live_key() ? __( 'Live key saved.', 'business-doctor' ) : __( 'Test key saved -- no real money moves yet.', 'business-doctor' ) ) : __( 'No key saved yet.', 'business-doctor' ); ?>
 					<tr><th><?php esc_html_e( 'Webhook address', 'business-doctor' ); ?></th><td><code><?php echo esc_html( rest_url( 'business-doctor/v1/webhooks/paystack' ) ); ?></code><p class="description"><?php echo esc_html( $readiness ); ?> <?php esc_html_e( 'Add this address in the Paystack dashboard under Settings > API keys and webhooks, so a payment still settles even if the owner closes the browser tab before returning.', 'business-doctor' ); ?></p></td></tr>
 				</table>
+				<h2><?php esc_html_e( 'AI diagnosis and prescription drafting', 'business-doctor' ); ?></h2>
+				<table class="form-table" role="presentation">
+					<tr><th><?php esc_html_e( 'AI drafting', 'business-doctor' ); ?></th><td><label><input type="checkbox" name="<?php echo esc_attr( $o ); ?>[ai_enabled]" value="1" <?php checked( $s['ai_enabled'] ); ?>> <?php esc_html_e( 'Let staff ask Claude to draft a diagnosis or prescription for review', 'business-doctor' ); ?></label><p class="description"><?php esc_html_e( 'Off by default. Staff can always write a diagnosis or prescription by hand instead, with or without this on; every draft, AI-written or not, still needs a second staff member\'s approval before an owner sees it.', 'business-doctor' ); ?></p></td></tr>
+					<tr><th><label for="bd-claude-key"><?php esc_html_e( 'Anthropic API key', 'business-doctor' ); ?></label></th><td>
+						<input type="password" id="bd-claude-key" class="regular-text" autocomplete="off" name="<?php echo esc_attr( $o ); ?>[claude_api_key]" value="" placeholder="<?php echo esc_attr( $s['claude_api_key'] ? __( 'A key is saved. Leave blank to keep it.', 'business-doctor' ) : 'sk-ant-...' ); ?>">
+						<p class="description"><?php esc_html_e( 'From the Anthropic Console, under API Keys.', 'business-doctor' ); ?></p>
+					</td></tr>
+					<tr><th><label for="bd-claude-model"><?php esc_html_e( 'Claude model', 'business-doctor' ); ?></label></th><td>
+						<input type="text" id="bd-claude-model" class="regular-text" name="<?php echo esc_attr( $o ); ?>[claude_model]" value="<?php echo esc_attr( $s['claude_model'] ); ?>" placeholder="claude-sonnet-4-5">
+						<p class="description"><?php esc_html_e( 'The exact model id from the Anthropic API documentation. Left blank on purpose rather than defaulting to one, so a stale default can never silently fail against a retired model.', 'business-doctor' ); ?></p>
+					</td></tr>
+					<tr><th><?php esc_html_e( 'Prescription deadlines', 'business-doctor' ); ?></th><td>
+						<?php esc_html_e( 'Between', 'business-doctor' ); ?> <input type="number" min="1" class="small-text" name="<?php echo esc_attr( $o ); ?>[prescription_min_days]" value="<?php echo esc_attr( $s['prescription_min_days'] ); ?>"> <?php esc_html_e( 'and', 'business-doctor' ); ?> <input type="number" min="1" max="365" class="small-text" name="<?php echo esc_attr( $o ); ?>[prescription_max_days]" value="<?php echo esc_attr( $s['prescription_max_days'] ); ?>"> <?php esc_html_e( 'days', 'business-doctor' ); ?>
+						<p class="description"><?php esc_html_e( 'Every action in a prescription, AI-drafted or staff-written, needs a deadline in this range; anything outside it is rejected.', 'business-doctor' ); ?></p>
+					</td></tr>
+				</table>
 				<h2><?php esc_html_e( 'Security and data', 'business-doctor' ); ?></h2>
 				<table class="form-table" role="presentation">
 					<tr><th><label for="bd-rate"><?php esc_html_e( 'Submissions per visitor', 'business-doctor' ); ?></label></th><td><input type="number" id="bd-rate" min="1" max="100" class="small-text" name="<?php echo esc_attr( $o ); ?>[rate_limit]" value="<?php echo esc_attr( $s['rate_limit'] ); ?>"> <?php esc_html_e( 'per 15 minutes', 'business-doctor' ); ?></td></tr>
